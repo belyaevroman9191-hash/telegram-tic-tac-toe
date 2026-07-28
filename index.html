@@ -160,16 +160,21 @@
                         rematchModal.style.display = "none";
                     } else if (reqs.length > 0) {
                         if (reqs.includes(userId)) {
+                            // Если вы отправили запрос первым
                             rematchBtn.style.display = "block";
                             rematchBtn.disabled = true;
                             rematchBtn.innerText = "Ожидание ответа...";
                             rematchModal.style.display = "none";
                         } else {
+                            // Если соперник отправил запрос вам
                             rematchBtn.style.display = "none";
                             rematchModal.style.display = "flex";
                         }
                     } else {
+                        // ИСПРАВЛЕНО: Кнопка гарантированно показывается и больше не прячется каждую секунду
                         rematchBtn.style.display = "block";
+                        rematchBtn.disabled = false;
+                        rematchBtn.innerText = "Сыграть еще раз";
                         rematchModal.style.display = "none";
                     }
                 }
