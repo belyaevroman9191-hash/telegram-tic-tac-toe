@@ -14,7 +14,7 @@ import uvicorn
 # Токен вашего бота от @BotFather
 TOKEN = "8756387431:AAGFETfMx3WoBCxATBvYWutsuRI9-8VkU_I"
 # URL вашего сервера на Render
-SERVER_URL = "https://onrender.com" 
+SERVER_URL = "https://telegram-tic-tac-toe-8dv1.onrender.com" 
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
