@@ -28,7 +28,6 @@
         .shop-btn { padding: 6px 12px; font-size: 0.85rem; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; color: #fff; background: #007aff; }
         .shop-btn.equip-btn { background: #30b0c7; }
         .shop-btn.owned-btn { background: #48484a; color: #aeaeae; cursor: default; }
-
         .btn { background: #007aff; color: #fff; border: none; padding: 12px 24px; font-size: 1rem; font-weight: bold; border-radius: 10px; cursor: pointer; display: none; margin: 15px auto; transition: background 0.2s; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 100; }
         .modal-content { background: #2c2c2e; padding: 25px; border-radius: 16px; width: 85%; max-width: 320px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
@@ -37,7 +36,6 @@
         .btn-decline { background: #ff3b30; color: #fff; }
         .cell.win-line { background: #34c759 !important; color: #ffffff !important; transform: scale(1.03); box-shadow: 0 0 12px rgba(52, 199, 89, 0.5); }
 
-        /* ДОРАБОТАНО: Красивые стили для кастомного всплывающего окна (модалки общего назначения) */
         .custom-alert { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 200; }
         .alert-box { background: #2c2c2e; border: 1px solid #3a3a3c; padding: 20px; border-radius: 16px; width: 85%; max-width: 300px; box-shadow: 0 4px 25px rgba(0,0,0,0.6); }
         .alert-msg { font-size: 1rem; color: #eaeaea; margin-bottom: 15px; font-weight: bold; }
@@ -57,7 +55,6 @@
         <div class="winrate-bar-bg"><div id="rate-fill" class="winrate-bar-fill"></div></div>
     </div>
 
-    <!-- Тройной клик по тексту откроет кастомное меню админа -->
     <h2 id="game-title" style="margin-top: 10px; cursor: pointer;" onclick="handleAdminClick()">Крестики-Нолики ❌⭕</h2>
     <div id="status">Инициализация игровой сессии...</div>
     
@@ -72,7 +69,6 @@
         <div class="cell" onclick="handleCellClick(7)"></div>
         <div class="cell" onclick="handleCellClick(8)"></div>
     </div>
-
     <button id="rematch-btn" class="btn" onclick="sendRematchRequest()">Сыграть еще раз</button>
 
     <div class="shop-title">🎨 Магазин кастомных скинов</div>
@@ -88,7 +84,6 @@
         </div>
     </div>
 
-    <!-- ДОРАБОТАНО: Единое окно кастомных уведомлений (Заменяет браузерные alert и prompt) -->
     <div id="custom-alert" class="custom-alert">
         <div class="alert-box">
             <div id="alert-text" class="alert-msg">Сообщение</div>
@@ -99,6 +94,7 @@
             </div>
         </div>
     </div>
+
     <script>
         const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
         if (tg) tg.expand();
@@ -124,21 +120,19 @@
             "space": {name: "Космос", cost: 15, x: "🚀", o: "👽"}
         };
 
-        // ТВОЙ ПОЛНОСТЬЮ ИСПРАВЛЕННЫЙ ВАРИАНТ ФУНКЦИЙ
+        // ТВОЙ ПОЛНОСТЬЮ ИСПРАВЛЕННЫЙ ВАРИАНТ ФУНКЦИЙ (БЕЗ СОКРАЩЕНИЙ МАРКДАУНА)
         function checkWin(b, s) {
-            const winPatterns = [[[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]]];
+            const winPatterns = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
             return winPatterns.some(p => p.every(i => b[i] === s));
         }
 
         function highlightWin(b, s) {
-            const winPatterns = [[[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]]];
+            const winPatterns = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
             const cells = document.querySelectorAll('.cell');
             winPatterns.forEach(p => {
                 if (p.every(i => b[i] === s)) { p.forEach(i => cells[i].classList.add('win-line')); }
             });
         }
-
-        // ДОРАБОТАНО: Красивое окно уведомлений и ввода (Реализовано через асинхронные промисы)
         function showNotification(text, hasInput = false, defaultValue = "") {
             return new Promise((resolve) => {
                 document.getElementById('alert-text').innerText = text;
@@ -167,7 +161,6 @@
             });
         }
 
-        // Генератор звуковых эффектов (SFX)
         function playSound(type) {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -205,7 +198,6 @@
             } catch(e){}
         }
 
-        // Тактильная вибрация через Telegram API
         function triggerVibration(style) {
             if (tg && tg.HapticFeedback) {
                 if (style === 'light') tg.HapticFeedback.impactOccurred('light');
@@ -213,7 +205,7 @@
                 else if (style === 'error') tg.HapticFeedback.notificationOccurred('warning');
             }
         }
-        // Отрисовка магазина скинов
+
         function renderShop(currentSkin, unlockedSkins, currentWins) {
             const shopBox = document.getElementById('shop-box');
             shopBox.innerHTML = "";
@@ -246,7 +238,6 @@
                 shopBox.appendChild(item);
             }
         }
-
         async function shopAction(action, skinId) {
             try {
                 const res = await fetch(`/api/shop/${userId}`, {
@@ -256,19 +247,13 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    playSound('win');
-                    triggerVibration('success');
-                    defUpdate();
+                    playSound('win'); triggerVibration('success'); defUpdate();
                 } else {
-                    playSound('error');
-                    triggerVibration('error');
-                    // ИСПРАВЛЕНО: Вместо браузерного алерта вызываем красивое окно
-                    await showNotification(data.message);
+                    playSound('error'); triggerVibration('error'); await showNotification(data.message);
                 }
             } catch(e){}
         }
 
-        // ДОРАБОТАНО: Анимация тройного клика и открытие кастомного меню админа
         let titleClickCount = 0;
         let titleClickTimer = null;
 
@@ -278,8 +263,7 @@
                 titleClickTimer = setTimeout(() => { titleClickCount = 0; }, 1500);
             }
             if (titleClickCount === 3) {
-                clearTimeout(titleClickTimer);
-                titleClickCount = 0;
+                clearTimeout(titleClickTimer); titleClickCount = 0;
                 playSound('click'); triggerVibration('light');
 
                 const pin = await showNotification("🔐 Введите ПИН-код администратора:", true);
@@ -302,17 +286,14 @@
                         });
                         const resData = await response.json();
                         if (resData.success) {
-                            playSound('win'); triggerVibration('success');
-                            await showNotification(resData.message);
+                            playSound('win'); triggerVibration('success'); await showNotification(resData.message);
                         } else {
-                            playSound('error'); triggerVibration('error');
-                            await showNotification("Ошибка: " + resData.message);
+                            playSound('error'); triggerVibration('error'); await showNotification("Ошибка: " + resData.message);
                         }
                         defUpdate();
                     } catch (e) { await showNotification("Ошибка подключения к серверу."); }
                 } else if (pin !== null) {
-                    playSound('error'); triggerVibration('error');
-                    await showNotification("Неверный ПИН-код!");
+                    playSound('error'); triggerVibration('error'); await showNotification("Неверный ПИН-код!");
                 }
             }
         }
@@ -376,12 +357,9 @@
                     rematchModal.style.display = "none";
                 } else if (data.status === "over") {
                     isGameActive = false;
-                    
                     document.getElementById('status').innerText = data.winner === "Ничья" ? "Ничья! 🤝" : (data.winner === data.visual_symbol ? "Вы победили! 🎉" : `Победил соперник! 😔`);
                     
-                    if (data.winner !== "Ничья") {
-                        highlightWin(boardState, data.winner);
-                    }
+                    if (data.winner !== "Ничья") { highlightWin(boardState, data.winner); }
 
                     if (lastStatus !== "over") {
                         if (data.winner === "Ничья") playSound('click');
@@ -391,105 +369,56 @@
 
                     const reqs = data.rematch_requests || [];
                     if (data.rematch_declined) {
-                        rematchBtn.style.display = "block";
-                        rematchBtn.disabled = true;
-                        rematchBtn.innerText = "Противник отклонил реванш ↩️";
-                        rematchModal.style.display = "none";
+                        rematchBtn.style.display = "block"; rematchBtn.disabled = true; rematchBtn.innerText = "Противник отклонил реванш ↩️"; rematchModal.style.display = "none";
                     } else if (reqs.length > 0) {
                         if (reqs.includes(userId)) {
-                            rematchBtn.style.display = "block";
-                            rematchBtn.disabled = true;
-                            rematchBtn.innerText = "Ожидание ответа...";
-                            rematchModal.style.display = "none";
+                            rematchBtn.style.display = "block"; rematchBtn.disabled = true; rematchBtn.innerText = "Ожидание ответа..."; rematchModal.style.display = "none";
                         } else {
-                            rematchBtn.style.display = "none";
-                            rematchModal.style.display = "flex";
+                            rematchBtn.style.display = "none"; rematchModal.style.display = "flex";
                         }
                     } else {
-                        rematchBtn.style.display = "block";
-                        rematchBtn.disabled = false;
-                        rematchBtn.innerText = "Сыграть еще раз";
-                        rematchModal.style.display = "none";
+                        rematchBtn.style.display = "block"; rematchBtn.disabled = false; rematchBtn.innerText = "Сыграть еще раз"; rematchModal.style.display = "none";
                     }
                 }
                 lastStatus = data.status;
-            } catch (err) {
-                document.getElementById('status').innerText = "Ошибка синхронизации.";
-            }
+            } catch (err) { document.getElementById('status').innerText = "Ошибка синхронизации."; }
         }
 
         async function handleCellClick(index) {
-        if (!isGameActive || !isMyTurn || boardState[index] !== "") {
-            if (boardState[index] !== "") { 
-                playSound('error'); 
-                triggerVibration('error'); 
+            if (!isGameActive || !isMyTurn || boardState[index] !== "") {
+                if (boardState[index] !== "") { playSound('error'); triggerVibration('error'); }
+                return;
             }
-            return;
+            playSound('click'); triggerVibration('light');
+            boardState[index] = mySymbol; isMyTurn = false;
+            document.getElementById('status').innerText = "Отправка хода...";
+            let isWinDetected = checkWin(boardState, mySymbol);
+            let isTieDetected = !boardState.includes("") && !isWinDetected;
+            try {
+                await fetch(`/api/move/${roomId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ index: index, symbol: mySymbol, user_id: userId, game_over: isWinDetected || isTieDetected, winner_id: isWinDetected ? userId : null })
+                });
+                defUpdate();
+            } catch (e) { document.getElementById('status').innerText = "Ошибка отправки хода."; }
         }
 
-        playSound('click');
-        triggerVibration('light');
-
-        boardState[index] = mySymbol; 
-        isMyTurn = false;
-        document.getElementById('status').innerText = "Отправка хода...";
-
-        let isWinDetected = checkWin(boardState, mySymbol);
-        let isTieDetected = !boardState.includes("") && !isWinDetected;
-
-        try {
-            await fetch(`/api/move/${roomId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    index: index,
-                    symbol: mySymbol,
-                    user_id: userId,
-                    game_over: isWinDetected || isTieDetected,
-                    winner_id: isWinDetected ? userId : null
-                })
-            });
-            defUpdate();
-        } catch (e) {
-            document.getElementById('status').innerText = "Ошибка отправки хода.";
+        async function sendRematchRequest() {
+            playSound('click');
+            try { await fetch(`/api/rematch/${roomId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'request', user_id: userId }) }); defUpdate(); } catch (e) {}
         }
-    }
+        async function acceptRematch() {
+            playSound('win');
+            try { await fetch(`/api/rematch/${roomId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'accept', user_id: userId }) }); defUpdate(); } catch (e) {}
+        }
+        async function declineRematch() {
+            playSound('lose');
+            try { await fetch(`/api/rematch/${roomId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'decline', user_id: userId }) }); defUpdate(); } catch (e) {}
+        }
 
-    async function sendRematchRequest() {
-        playSound('click');
-        try { 
-            await fetch(`/api/rematch/${roomId}`, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ action: 'request', user_id: userId }) 
-            }); 
-            defUpdate(); 
-        } catch (e) {}
-    }
-
-    async function acceptRematch() {
-        playSound('win');
-        try { 
-            await fetch(`/api/rematch/${roomId}`, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ action: 'accept', user_id: userId }) 
-            }); 
-            defUpdate(); 
-        } catch (e) {}
-    }
-
-    async function declineRematch() {
-        playSound('lose');
-        try { 
-            await fetch(`/api/rematch/${roomId}`, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ action: 'decline', user_id: userId }) 
-            }); 
-            defUpdate(); 
-        } catch (e) {}
-    }
-
-    setInterval(defUpdate, 1000);
-    defUpdate();
+        setInterval(defUpdate, 1000);
+        defUpdate();
+    </script>
+</body>
+</html>
