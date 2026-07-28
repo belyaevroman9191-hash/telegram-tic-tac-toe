@@ -101,9 +101,12 @@ async def get_game():
     with open("index.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
+# ИСПРАВЛЕНО: Добавлен альтернативный маршрут с закрывающим слэшем для прокси Render
 @app.websocket("/ws/{room_id}")
+@app.websocket("/ws/{room_id}/")
 async def websocket_endpoint(websocket: WebSocket, room_id: str):
     await websocket.accept()
+
     if room_id not in rooms:
         rooms[room_id] = []
     
