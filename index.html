@@ -79,10 +79,9 @@
         let isMyTurn = false;
         let isGameActive = false;
 
-        const winPatterns = [
-            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Горизонтальные линии
-            [0, 3, 6], [1, 4, 7], [2, 5, 8], // Вертикальные линии
-            [0, 4, 8], [2, 4, 6]             // Диагональные линии
+        const winPatterns = [, [3, 4, 5], [6, 7, 8],
+, [1, 4, 7], [2, 5, 8],
+, [2, 4, 6]
         ];
 
         function checkWin(b, s) {
@@ -122,12 +121,30 @@
                 const rematchBtn = document.getElementById('rematch-btn');
                 const rematchModal = document.getElementById('rematch-modal');
 
+                // ДОРАБОТАНО: Если противник закрыл окно или отключился
+                if (data.status === "left") {
+                    isGameActive = false;
+                    document.getElementById('status').innerText = "⌛ Противник покинул игру. Выход...";
+                    document.getElementById('board').style.opacity = "0.3";
+                    document.getElementById('board').style.pointerEvents = "none";
+                    rematchBtn.style.display = "none";
+                    rematchModal.style.display = "none";
+                    
+                    // Мягко закрываем мини-приложение через 2.5 секунды
+                    setTimeout(() => {
+                        if (tg) tg.close();
+                    }, 2500);
+                    return;
+                }
+
                 if (data.status === "wait") {
                     document.getElementById('status').innerText = `Вы играете за: ${mySymbol}. Ожидаем соперника...`;
                     isGameActive = false;
                     rematchBtn.style.display = "none";
                     rematchModal.style.display = "none";
                 } else if (data.status === "active") {
+                    document.getElementById('board').style.opacity = "1";
+                    document.getElementById('board').style.pointerEvents = "auto";
                     isGameActive = true;
                     isMyTurn = (data.turn === mySymbol);
                     document.getElementById('status').innerText = isMyTurn ? "Ваш ход!" : "Ход противника...";
