@@ -124,8 +124,8 @@ async def get_game():
 async def get_state(room_id: str, user_id: str):
     current_time = time.time()
     
-    if room_id not in game_rooms:
-        game_rooms[room_id] = {
+    # Жестко переводим в строку для точного сравнения типов данных
+    user_id = str(user_id)
             "board": [""] * 9,
             "player1": user_id,
             "player2": None,
