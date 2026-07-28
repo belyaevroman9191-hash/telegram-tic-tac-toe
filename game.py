@@ -123,18 +123,16 @@ async def get_game():
         return HTMLResponse(content=f.read())
 
 # --- НАДЕЖНЫЙ HTTP API ДЛЯ ИГРЫ ---
-
 @app.get("/api/state/{room_id}/{user_id}")
 async def get_state(room_id: str, user_id: str):
     current_time = time.time()
-    
-    # ИСПРАВЛЕНО: Жесткое приведение ID игрока к строке, чтобы сервер не путал типы данных
     user_id = str(user_id)
+    room_id = str(room_id)
     
     if room_id not in game_rooms:
         game_rooms[room_id] = {
             "board": [""] * 9,
-            "player1": user_id,
+            "player1": user_id, # Создатель комнаты
             "player2": None,
             "status": "wait",
             "winner": "",
@@ -150,17 +148,24 @@ async def get_state(room_id: str, user_id: str):
         room["last_seen"] = {}
     room["last_seen"][user_id] = current_time
     
-    if room["player1"] != user_id and room["player2"] is None:
-        room["player2"] = user_id
+    # ИСПРАВЛЕНО: Безотказное добавление второго игрока. 
+    # Если зашел НЕ создатель, и место второго игрока пусто (или совпадает с текущим) — принудительно стартуем!
+    if room["player1"] != user_id:
+        if room["player2"] is None or room["player2"] == user_id:
+            room["player2"] = user_id
+            room["status"] = "active" # Жёстко переводим комнату в активный режим
+    
+    # Если комната уже активна, но один из игроков обновил страницу, удерживаем статус active
+    if room["player1"] and room["player2"] and room["status"] == "wait":
         room["status"] = "active"
     
-    # ИСПРАВЛЕНО: Проверка выхода оппонента (активность проверяется каждые 5 секунд)
+    # Автоматический выход, если противник отключился
     if room["status"] in ["active", "over"]:
         p1, p2 = str(room["player1"]), str(room["player2"])
         opponent_id = p2 if user_id == p1 else p1
         
         last_active = room["last_seen"].get(opponent_id, 0)
-        if current_time - last_active > 5.0:
+        if current_time - last_active > 6.0: # Немного увеличили запас до 6 секунд
             room["status"] = "left"
             room["winner"] = "opponent_left"
 
@@ -181,6 +186,7 @@ async def get_state(room_id: str, user_id: str):
         "rematch_requests": room.get("rematch_requests", []),
         "rematch_declined": room.get("rematch_declined", False)
     }
+
 
 @app.post("/api/move/{room_id}")
 async def make_move(room_id: str, data: dict = Body(...)):
