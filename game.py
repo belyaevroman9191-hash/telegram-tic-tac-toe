@@ -12,7 +12,7 @@ import uvicorn
 TOKEN = "8756387431:AAGFETfMx3WoBCxATBvYWutsuRI9-8VkU_I"
 # URL, где будет крутиться ваш сервер (после деплоя замените на реальный адрес)
 # Пока оставляем так, сюда мы вставим ссылку из ngrok
-SERVER_URL = "http://127.0.0.1:8000" 
+SERVER_URL = "https://telegram-tic-tac-toe-8dv1.onrender.com" 
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
