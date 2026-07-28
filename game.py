@@ -3,7 +3,7 @@ import json
 import logging
 import sqlite3
 import os
-import time 
+import time
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from fastapi import FastAPI, HTTPException, Body
@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS users (
 """)
 conn.commit()
 
+# Хранилище комнат в памяти
 game_rooms = {}
 
 @dp.message(Command("start"))
@@ -51,40 +52,39 @@ async def cmd_start(message: types.Message):
     conn.commit()
     
     args = message.text.split()
-    # ИСПРАВЛЕНО: корректная проверка аргументов start-ссылки
+    bot_info = await bot.get_me()
+    bot_username = bot_info.username
+    
+    # ИСПРАВЛЕНО: Безопасная проверка входящей ссылки-вызова
     if len(args) > 1 and args[1].startswith("game_"):
         room_id = args[1].replace("game_", "")
-        link = f"{SERVER_URL}/game?room={room_id}&user={user_id}"
+        # Ссылка ведёт сразу в шторку Mini App для принятия дуэли
+        link = f"https://t.me{bot_username}/play?startapp=room_{room_id}"
         await message.answer(
             "⚔️ Вы приняли вызов! Нажмите кнопку ниже, чтобы войти в игру:",
             reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
-                [types.InlineKeyboardButton(text="Играть", web_app=types.WebAppInfo(url=link))]
+                [types.InlineKeyboardButton(text="Играть", url=link)]
             ])
         )
         return
 
-    bot_info = await bot.get_me()
-    invite_link = f"https://t.me/{(await bot.get_me()).username}?start=game_{user_id}"
-    link = f"{SERVER_URL}/game?room={user_id}&user={user_id}"
-    
-    # ИСПРАВЛЕНО: Меню теперь ВСЕГДА находится внизу экрана (ReplyКлавиатура)
+    # ИСПРАВЛЕНО: Закрепленное нижнее меню (вход по кнопке WebApp открывает шторку)
     markup = types.ReplyKeyboardMarkup(
         keyboard=[
-            [types.KeyboardButton(text="🚪 Войти в свою комнату", web_app=types.WebAppInfo(url=link))],
+            [types.KeyboardButton(text="🚪 Войти в свою комнату", web_app=types.WebAppInfo(url=f"{SERVER_URL}/game?room={user_id}&user={user_id}"))],
             [types.KeyboardButton(text="🏆 Таблица лидеров"), types.KeyboardButton(text="🔗 Позвать друга")]
         ],
         resize_keyboard=True,
-        is_persistent=True # Меню не будет скрываться
+        is_persistent=True
     )
     
     await message.answer("❌⭕ Добро пожаловать! Используйте меню ниже для управления игрой.", reply_markup=markup)
 
-# ИСПРАВЛЕНО: теперь ТОП открывается и по кнопке, и по команде /top
 @dp.message(lambda msg: msg.text == "🏆 Таблица лидеров")
 @dp.message(Command("top"))
 async def cmd_top(message: types.Message):
     try:
-        # ИСПРАВЛЕНО: Защита от NULL значений у старых игроков (IFNULL(losses, 0))
+        # ИСПРАВЛЕНО: IFNULL защищает от падений при отсутствии записей у старых игроков
         cursor.execute("SELECT username, IFNULL(wins, 0), IFNULL(losses, 0) FROM users ORDER BY wins DESC, losses ASC LIMIT 10")
         leaders = cursor.fetchall()
         
@@ -100,11 +100,11 @@ async def cmd_top(message: types.Message):
         logging.error(f"Ошибка в команде top: {e}")
         await message.answer("Произошла ошибка при загрузке топа. Попробуйте позже.")
 
-# Обработка кнопки генерации инваsingle-ссылки
 @dp.message(lambda msg: msg.text == "🔗 Позвать друга")
 async def cmd_invite_link(message: types.Message):
     bot_info = await bot.get_me()
-    invite_link = f"https://t.me{bot_info.username}?start=game_{message.from_user.id}"
+    # ИСПРАВЛЕНО: Инвайт-ссылка теперь генерируется в формате Mini App
+    invite_link = f"https://t.me{bot_info.username}/play?startapp=room_{message.from_user.id}"
     
     markup = types.InlineKeyboardMarkup(inline_keyboard=[
         [types.InlineKeyboardButton(text="Вызвать друга на дуэль ⚔️", switch_inline_query=f"Вызываю тебя на дуэль! Переходи: {invite_link}")]
@@ -118,7 +118,7 @@ async def get_game():
     with open(html_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
-import time  # ДОБАВИТЬ В САМЫЙ ВЕРХ ФАЙЛА К ОСТАЛЬНЫМ ИМПОРТАМ
+# --- НАДЕЖНЫЙ HTTP API ДЛЯ ИГРЫ ---
 
 @app.get("/api/state/{room_id}/{user_id}")
 async def get_state(room_id: str, user_id: str):
@@ -134,12 +134,11 @@ async def get_state(room_id: str, user_id: str):
             "turn": "X",
             "rematch_requests": [],
             "rematch_declined": False,
-            "last_seen": {}  # ДОРАБОТАНО: храним время онлайна
+            "last_seen": {}
         }
     
     room = game_rooms[room_id]
     
-    # Обновляем время активности текущего игрока
     if "last_seen" not in room:
         room["last_seen"] = {}
     room["last_seen"][str(user_id)] = current_time
@@ -148,13 +147,12 @@ async def get_state(room_id: str, user_id: str):
         room["player2"] = user_id
         room["status"] = "active"
     
-    # ДОРАБОТАНО: Проверка, не вышел ли противник (актуально для активной или завершенной игры)
+    # ИСПРАВЛЕНО: Автоматическое завершение сессии, если оппонент закрыл приложение
     if room["status"] in ["active", "over"]:
         p1, p2 = str(room["player1"]), str(room["player2"])
         opponent_id = p2 if str(user_id) == p1 else p1
         
         last_active = room["last_seen"].get(opponent_id, 0)
-        # Если противника не было в сети больше 5 секунд
         if current_time - last_active > 5.0:
             room["status"] = "left"
             room["winner"] = "opponent_left"
@@ -187,7 +185,6 @@ async def make_move(room_id: str, data: dict = Body(...)):
     symbol = data.get("symbol")
     user_id = data.get("user_id")
     
-    # Обновляем активность при ходе
     if "last_seen" in room and user_id:
         room["last_seen"][str(user_id)] = time.time()
         
@@ -204,6 +201,7 @@ async def make_move(room_id: str, data: dict = Body(...)):
         winner_id = int(data["winner_id"])
         loser_id = int(room["player2"]) if str(winner_id) == str(room["player1"]) else int(room["player1"])
         
+        # Начисление победы и поражения в БД
         cursor.execute("UPDATE users SET wins = IFNULL(wins, 0) + 1 WHERE user_id = ?", (winner_id,))
         cursor.execute("UPDATE users SET losses = IFNULL(losses, 0) + 1 WHERE user_id = ?", (loser_id,))
         conn.commit()
@@ -231,6 +229,7 @@ async def handle_rematch(room_id: str, data: dict = Body(...)):
     opponent_id = p2 if str(user_id) == str(p1) else p1
     
     if action == "request":
+        # ИСПРАВЛЕНО: Исключено зависание при одновременном нажатии кнопки реванша
         if str(opponent_id) in [str(uid) for uid in room["rematch_requests"]]:
             action = "accept"
         else:
@@ -246,6 +245,7 @@ async def handle_rematch(room_id: str, data: dict = Body(...)):
         room["rematch_requests"] = []
         room["rematch_declined"] = False
         
+        # Меняем игроков ролями для честного реванша
         room["player1"] = p2
         room["player2"] = p1
         room["turn"] = "X"
