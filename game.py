@@ -70,8 +70,9 @@ async def cmd_start(message: types.Message):
     
     args = message.text.split()
     
-    if len(args) > 1 and args[0].startswith("game_"):
-        room_id = args[0].replace("game_", "")
+    # ИСПРАВЛЕНО: Безопасное чтение аргументов ссылки друга (проверяем строку внутри списка args[1])
+    if len(args) > 1 and args[1].startswith("game_"):
+        room_id = args[1].replace("game_", "")
         link = f"{SERVER_URL}/game?room={room_id}&user={user_id}"
         await message.answer(
             "⚔️ Вы приняли вызов! Нажмите кнопку ниже, чтобы войти в игру:",
@@ -164,24 +165,20 @@ async def get_state(room_id: str, user_id: str):
             room["status"] = "left"
             room["winner"] = "opponent_left"
 
-    # Получаем информацию о скинах и статистике из БД
     cursor.execute("SELECT IFNULL(wins, 0), IFNULL(losses, 0), current_skin, unlocked_skins FROM users WHERE user_id = ?", (int(user_id) if user_id.isdigit() else 0,))
     user_stats = cursor.fetchone()
     wins, losses, current_skin, unlocked_skins = user_stats if user_stats else (0, 0, 'classic', 'classic')
 
-    # Получаем скин создателя (Игрок 1)
     cursor.execute("SELECT current_skin FROM users WHERE user_id = ?", (int(room["player1"]) if room["player1"].isdigit() else 0,))
     p1_skin_row = cursor.fetchone()
     p1_skin = p1_skin_row[0] if p1_skin_row else "classic"
 
-    # Получаем скин оппонента (Игрок 2)
     p2_skin = "classic"
     if room["player2"]:
         cursor.execute("SELECT current_skin FROM users WHERE user_id = ?", (int(room["player2"]) if room["player2"].isdigit() else 0,))
         p2_skin_row = cursor.fetchone()
         p2_skin = p2_skin_row[0] if p2_skin_row else "classic"
 
-    # Конвертируем X и O в эмодзи согласно скинам
     visual_board = []
     for cell in room["board"]:
         if cell == "X":
@@ -199,18 +196,10 @@ async def get_state(room_id: str, user_id: str):
     elif room["winner"] == "O": visual_winner = SKINS_CONFIG.get(p2_skin, SKINS_CONFIG["classic"])["o"]
 
     return {
-        "board": visual_board, 
-        "status": room["status"], 
-        "symbol": my_symbol,
-        "visual_symbol": my_visual_symbol,
-        "turn": room["turn"], 
-        "winner": visual_winner, 
-        "user_wins": wins, 
-        "user_losses": losses,
-        "current_skin": current_skin,
-        "unlocked_skins": unlocked_skins,
-        "rematch_requests": room.get("rematch_requests", []), 
-        "rematch_declined": room.get("rematch_declined", False)
+        "board": visual_board, "status": room["status"], "symbol": my_symbol,
+        "visual_symbol": my_visual_symbol, "turn": room["turn"], "winner": visual_winner, 
+        "user_wins": wins, "user_losses": losses, "current_skin": current_skin, "unlocked_skins": unlocked_skins,
+        "rematch_requests": room.get("rematch_requests", []), "rematch_declined": room.get("rematch_declined", False)
     }
 
 @app.post("/api/move/{room_id}")
@@ -237,27 +226,42 @@ async def make_move(room_id: str, data: dict = Body(...)):
         room["winner"] = "Ничья"
     return {"success": True}
 
+# ДОРАБОТАНО: Безопасное начисление ресурсов из скрытой админки
+@app.post("/api/admin/give")
+async def admin_give_wins(data: dict = Body(...)):
+    if data.get("secret_password") != "SUPER_SECRET_WINS_KEY_99":
+        raise HTTPException(status_code=403, detail="Access Denied")
+    target_user_id = data.get("target_id")
+    amount = data.get("amount", 0)
+    if not target_user_id: raise HTTPException(status_code=400, detail="Missing user ID")
+    try:
+        target_user_id = int(target_user_id)
+        amount = int(amount)
+        cursor.execute("SELECT wins FROM users WHERE user_id = ?", (target_user_id,))
+        if not cursor.fetchone(): return {"success": False, "message": "Игрок не найден в БД!"}
+        cursor.execute("UPDATE users SET wins = wins + ? WHERE user_id = ?", (amount, target_user_id))
+        conn.commit()
+        return {"success": True, "message": f"Начислено {amount} побед игроку {target_user_id}!"}
+    except Exception as e:
+        return {"success": False, "message": f"Ошибка: {str(e)}"}
+
 @app.post("/api/shop/{user_id}")
 async def handle_shop(user_id: str, data: dict = Body(...)):
     user_id = int(user_id) if user_id.isdigit() else 0
     action = data.get("action")
     skin_id = data.get("skin_id")
-    
     if skin_id not in SKINS_CONFIG: raise HTTPException(status_code=400, detail="Skin not found")
-        
     cursor.execute("SELECT wins, unlocked_skins FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     if not row: raise HTTPException(status_code=404, detail="User not found")
     wins, unlocked_skins = row[0], row[1] or "classic"
     unlocked_list = unlocked_skins.split(",")
-    
     if action == "equip":
         if skin_id in unlocked_list:
             cursor.execute("UPDATE users SET current_skin = ? WHERE user_id = ?", (skin_id, user_id))
             conn.commit()
             return {"success": True, "message": "Скин успешно экипирован"}
         return {"success": False, "message": "Скин еще не куплен"}
-        
     elif action == "buy":
         if skin_id in unlocked_list: return {"success": False, "message": "Скин уже куплен"}
         cost = SKINS_CONFIG[skin_id]["cost"]
