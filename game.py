@@ -54,12 +54,12 @@ async def cmd_start(message: types.Message):
     args = message.text.split()
     bot_info = await bot.get_me()
     bot_username = bot_info.username
+    app_short_name = "play"
     
-    # ИСПРАВЛЕНО: Безопасная проверка входящей ссылки-вызова
+    # ИСПРАВЛЕНО: Безопасная проверка и правильный слэш "/" после t.me для Mini App
     if len(args) > 1 and args[1].startswith("game_"):
         room_id = args[1].replace("game_", "")
-        # Ссылка ведёт сразу в шторку Mini App для принятия дуэли
-        link = f"https://t.me/{bot_username}/play?startapp=room_{room_id}"
+        link = f"https://t.me/{bot_username}/{app_short_name}?startapp=room_{room_id}"
         await message.answer(
             "⚔️ Вы приняли вызов! Нажмите кнопку ниже, чтобы войти в игру:",
             reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
@@ -68,7 +68,7 @@ async def cmd_start(message: types.Message):
         )
         return
 
-    # ИСПРАВЛЕНО: Закрепленное нижнее меню (вход по кнопке WebApp открывает шторку)
+    # ИСПРАВЛЕНО: Закрепленное нижнее меню. Вход в свою комнату открывает WebApp по прямой ссылке
     markup = types.ReplyKeyboardMarkup(
         keyboard=[
             [types.KeyboardButton(text="🚪 Войти в свою комнату", web_app=types.WebAppInfo(url=f"{SERVER_URL}/game?room={user_id}&user={user_id}"))],
@@ -84,7 +84,7 @@ async def cmd_start(message: types.Message):
 @dp.message(Command("top"))
 async def cmd_top(message: types.Message):
     try:
-        # ИСПРАВЛЕНО: IFNULL защищает от падений при отсутствии записей у старых игроков
+        # ИСПРАВЛЕНО: Защита от NULL у старых игроков
         cursor.execute("SELECT username, IFNULL(wins, 0), IFNULL(losses, 0) FROM users ORDER BY wins DESC, losses ASC LIMIT 10")
         leaders = cursor.fetchall()
         
@@ -103,7 +103,7 @@ async def cmd_top(message: types.Message):
 @dp.message(lambda msg: msg.text == "🔗 Позвать друга")
 async def cmd_invite_link(message: types.Message):
     bot_info = await bot.get_me()
-    # ИСПРАВЛЕНО: Инвайт-ссылка теперь генерируется в формате Mini App
+    # ИСПРАВЛЕНО: Добавлен слэш "/" после t.me в инвайт-ссылке
     invite_link = f"https://t.me/{bot_info.username}/play?startapp=room_{message.from_user.id}"
     
     markup = types.InlineKeyboardMarkup(inline_keyboard=[
@@ -124,8 +124,11 @@ async def get_game():
 async def get_state(room_id: str, user_id: str):
     current_time = time.time()
     
-    # Жестко переводим в строку для точного сравнения типов данных
+    # ИСПРАВЛЕНО: Жесткое приведение ID игрока к строке, чтобы сервер не путал типы данных
     user_id = str(user_id)
+    
+    if room_id not in game_rooms:
+        game_rooms[room_id] = {
             "board": [""] * 9,
             "player1": user_id,
             "player2": None,
@@ -141,16 +144,16 @@ async def get_state(room_id: str, user_id: str):
     
     if "last_seen" not in room:
         room["last_seen"] = {}
-    room["last_seen"][str(user_id)] = current_time
+    room["last_seen"][user_id] = current_time
     
     if room["player1"] != user_id and room["player2"] is None:
         room["player2"] = user_id
         room["status"] = "active"
     
-    # ИСПРАВЛЕНО: Автоматическое завершение сессии, если оппонент закрыл приложение
+    # ИСПРАВЛЕНО: Проверка выхода оппонента (активность проверяется каждые 5 секунд)
     if room["status"] in ["active", "over"]:
         p1, p2 = str(room["player1"]), str(room["player2"])
-        opponent_id = p2 if str(user_id) == p1 else p1
+        opponent_id = p2 if user_id == p1 else p1
         
         last_active = room["last_seen"].get(opponent_id, 0)
         if current_time - last_active > 5.0:
@@ -229,7 +232,7 @@ async def handle_rematch(room_id: str, data: dict = Body(...)):
     opponent_id = p2 if str(user_id) == str(p1) else p1
     
     if action == "request":
-        # ИСПРАВЛЕНО: Исключено зависание при одновременном нажатии кнопки реванша
+        # ИСПРАВЛЕНО: Автоматическое согласие на реванш при одновременном нажатии кнопок
         if str(opponent_id) in [str(uid) for uid in room["rematch_requests"]]:
             action = "accept"
         else:
