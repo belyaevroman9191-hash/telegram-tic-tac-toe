@@ -57,7 +57,7 @@ async def cmd_start(message: types.Message):
 
     # Если игрок создает новую игру
     bot_info = await bot.get_me()
-    invite_link = f"https://t.me{bot_info.username}?start=game_{user_id}"
+    invite_link = f"https://t.me/{(await bot.get_me()).username}?start=game_{user_id}"
     
     link = f"{SERVER_URL}/game?room={user_id}&user={user_id}"
     markup = types.InlineKeyboardMarkup(inline_keyboard=[
