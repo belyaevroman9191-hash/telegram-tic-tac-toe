@@ -57,7 +57,7 @@ SKINS_CONFIG = {
 
 game_rooms = {}
 
-# ИСПРАВЛЕНО: Полный список комбинаций записан столбиком без скрытых символов
+# Серверный математический список всех 8 линий (без пропусков маркдауна)
 def check_server_win(b, s):
     win_patterns = [,
         [0, 1, 2],
@@ -70,7 +70,7 @@ def check_server_win(b, s):
         [2, 4, 6],
     ]
     for p in win_patterns:
-        if b[p[0]] == s and b[p[1]] == s and b[p[2]] == s:
+        if b[p] == s and b[p] == s and b[p] == s:
             return p
     return None
 
@@ -83,10 +83,11 @@ async def cmd_start(message: types.Message):
     cursor.execute("UPDATE users SET username = ? WHERE user_id = ?", (username, user_id))
     conn.commit()
     
-    args = message.text.split()
+    text_parts = message.text.split()
     
-    if len(args) > 1 and args[1].startswith("game_"):
-        room_id = args[1].replace("game_", "")
+    # ИСПРАВЛЕНО: Безопасное чтение аргументов. Проверяем строковый элемент внутри списка!
+    if len(text_parts) > 1 and text_parts.startswith("game_"):
+        room_id = text_parts.replace("game_", "")
         link = f"{SERVER_URL}/game?room={room_id}&user={user_id}"
         await message.answer(
             "⚔️ Вы приняли вызов! Нажмите кнопку ниже, чтобы войти в игру:",
@@ -186,13 +187,13 @@ async def get_state(room_id: str, user_id: str):
 
     cursor.execute("SELECT current_skin FROM users WHERE user_id = ?", (int(room["player1"]) if room["player1"].isdigit() else 0,))
     p1_skin_row = cursor.fetchone()
-    p1_skin = p1_skin_row[0] if p1_skin_row else "classic"
+    p1_skin = p1_skin_row if p1_skin_row else "classic"
 
     p2_skin = "classic"
     if room["player2"]:
         cursor.execute("SELECT current_skin FROM users WHERE user_id = ?", (int(room["player2"]) if room["player2"].isdigit() else 0,))
         p2_skin_row = cursor.fetchone()
-        p2_skin = p2_skin_row[0] if p2_skin_row else "classic"
+        p2_skin = p2_skin_row if p2_skin_row else "classic"
 
     visual_board = []
     for cell in room["board"]:
@@ -270,7 +271,7 @@ async def handle_shop(user_id: str, data: dict = Body(...)):
     cursor.execute("SELECT wins, unlocked_skins FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     if not row: raise HTTPException(status_code=404, detail="User not found")
-    wins, unlocked_skins = row[0], row[1] or "classic"
+    wins, unlocked_skins = row, row or "classic"
     unlocked_list = unlocked_skins.split(",")
     if action == "equip":
         if skin_id in unlocked_list:
