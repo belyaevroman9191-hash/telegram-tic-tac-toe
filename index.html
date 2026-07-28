@@ -17,122 +17,107 @@
 <body>
 
     <h2 style="margin-top: 10px;">Крестики-Нолики ❌⭕</h2>
-    <div id="status">Загрузка игры...</div>
+    <div id="status">Инициализация игровой сессии...</div>
     
     <div class="board" id="board">
-        <div class="cell" onclick="makeMove(0)"></div>
-        <div class="cell" onclick="makeMove(1)"></div>
-        <div class="cell" onclick="makeMove(2)"></div>
-        <div class="cell" onclick="makeMove(3)"></div>
-        <div class="cell" onclick="makeMove(4)"></div>
-        <div class="cell" onclick="makeMove(5)"></div>
-        <div class="cell" onclick="makeMove(6)"></div>
-        <div class="cell" onclick="makeMove(7)"></div>
-        <div class="cell" onclick="makeMove(8)"></div>
+        <div class="cell" onclick="handleCellClick(0)"></div>
+        <div class="cell" onclick="handleCellClick(1)"></div>
+        <div class="cell" onclick="handleCellClick(2)"></div>
+        <div class="cell" onclick="handleCellClick(3)"></div>
+        <div class="cell" onclick="handleCellClick(4)"></div>
+        <div class="cell" onclick="handleCellClick(5)"></div>
+        <div class="cell" onclick="handleCellClick(6)"></div>
+        <div class="cell" onclick="handleCellClick(7)"></div>
+        <div class="cell" onclick="handleCellClick(8)"></div>
     </div>
 
     <script>
-        // ИСПРАВЛЕНО: Безопасная проверка наличия Telegram WebApp API
         const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-        if (tg) {
-            tg.expand();
-        }
+        if (tg) tg.expand();
 
-        // ИСПРАВЛЕНО: Объявление базовых игровых переменных в самом начале
-        let board = ["", "", "", "", "", "", "", "", ""];
-        let mySymbol = ""; 
+        const urlParams = new URLSearchParams(window.location.search);
+        let roomId = urlParams.get('room');
+        let userId = urlParams.get('user');
+
+        if (!roomId || roomId === "null") roomId = "lobby_" + Math.floor(Math.random() * 10000);
+        if (!userId || userId === "null") userId = "player_" + Math.floor(Math.random() * 10000);
+
+        let mySymbol = "";
+        let boardState = ["", "", "", "", "", "", "", "", ""];
         let isMyTurn = false;
-        let gameActive = false;
+        let isGameActive = false;
 
-                // 1. СНАЧАЛА СЧИТЫВАЕМ ПАРАМЕТРЫ ИЗ ССЫЛКИ
-                const urlParams = new URLSearchParams(window.location.search);
-                let roomId = urlParams.get('room');
-                let userId = urlParams.get('user');
-        
-                // 2. И ТОЛЬКО ПОТОМ ПРОВЕРЯЕМ ИХ НА КОРРЕКТНОСТЬ (ВАШ БЛОК IF)
-                if (!roomId || roomId === "null" || roomId === null) {
-                    roomId = "lobby_" + Math.floor(Math.random() * 100000);
-                }
-                if (!userId || userId === "null" || userId === null) {
-                    userId = "player_" + Math.floor(Math.random() * 100000);
-                }
-
-        
-        // ИСПРАВЛЕНИЕ: Жестко прописываем защищенный wss адрес вашего сервера Render
-        const socket = new WebSocket(`wss://telegram-tic-tac-toe-8dv1.onrender.com/ws/${roomId}`);
-
-
-
-        socket.onopen = function(e) {
-            document.getElementById('status').innerText = "Подключение установлено! Ожидаем игроков...";
-            console.log("WebSocket подключен.");
-        };
-
-        socket.onerror = function(err) {
-            document.getElementById('status').innerText = "Ошибка подключения к серверу.";
-        };
-
-        socket.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            
-            if (data.type === "init") {
+        async defUpdate() {
+            try {
+                const response = await fetch(`/api/state/${roomId}/${userId}`);
+                const data = await response.json();
+                
                 mySymbol = data.symbol;
-                isMyTurn = (mySymbol === "X");
-                document.getElementById('status').innerText = `Вы играете за: ${mySymbol}. Ожидаем оппонента...`;
-            }
-            
-            if (data.type === "start") {
-                gameActive = true;
-                document.getElementById('status').innerText = isMyTurn ? "Ваш ход!" : "Ход противника...";
-            }
-            
-            if (data.type === "move") {
-                board[data.index] = data.symbol;
+                boardState = data.board;
+                
+                // Отрисовка поля
                 const cells = document.querySelectorAll('.cell');
-                cells[data.index].innerText = data.symbol;
-                cells[data.index].classList.add(data.symbol.toLowerCase());
-                isMyTurn = true;
-                document.getElementById('status').innerText = "Ваш ход!";
-            }
+                boardState.forEach((val, idx) => {
+                    cells[idx].innerText = val;
+                    cells[idx].className = "cell" + (val ? " " + val.toLowerCase() : "");
+                });
 
-            if (data.type === "game_over") {
-                gameActive = false;
-                document.getElementById('status').innerText = data.winner === "Ничья" ? "Ничья! 🤝" : `Победил игрок ${data.winner}! 🎉`;
-            }
-        };
-
-        function makeMove(index) {
-            if (!gameActive || !isMyTurn || board[index] !== "") return;
-            
-            board[index] = mySymbol;
-            const cells = document.querySelectorAll('.cell');
-            cells[index].innerText = mySymbol;
-            cells[index].classList.add(mySymbol.toLowerCase());
-            isMyTurn = false;
-            document.getElementById('status').innerText = "Ход противника...";
-            
-            socket.send(JSON.stringify({ type: "move", index: index, symbol: mySymbol }));
-            
-            if (checkWin()) {
-                gameActive = false;
-                document.getElementById('status').innerText = "Вы победили! 🎉";
-                socket.send(JSON.stringify({ type: "game_over", winner: mySymbol, winner_id: userId }));
-            } else if (!board.includes("")) {
-                gameActive = false;
-                document.getElementById('status').innerText = "Ничья! 🤝";
-                socket.send(JSON.stringify({ type: "game_over", winner: "Ничья" }));
+                if (data.status === "wait") {
+                    document.getElementById('status').innerText = `Вы играете за: ${mySymbol}. Ожидаем соперника...`;
+                    isGameActive = false;
+                } else if (data.status === "active") {
+                    isGameActive = true;
+                    isMyTurn = (data.turn === mySymbol);
+                    document.getElementById('status').innerText = isMyTurn ? "Ваш ход!" : "Ход противника...";
+                } else if (data.status === "over") {
+                    isGameActive = false;
+                    document.getElementById('status').innerText = data.winner === "Ничья" ? "Ничья! 🤝" : (data.winner === mySymbol ? "Вы победили! 🎉" : `Победил игрок ${data.winner}! 😔`);
+                }
+            } catch (err) {
+                document.getElementById('status').innerText = "Ошибка синхронизации данных.";
             }
         }
 
-        function checkWin() {
+        async function handleCellClick(index) {
+            if (!isGameActive || !isMyTurn || boardState[index] !== "") return;
+
+            boardState[index] = mySymbol;
+            isMyTurn = false;
+            document.getElementById('status').innerText = "Отправка хода...";
+
+            // Проверка локальной победы
+            let gameOver = checkWin(boardState, mySymbol);
+            let tie = !boardState.includes("") && !gameOver;
+
+            try {
+                await fetch(`/api/move/${roomId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        index: index,
+                        symbol: mySymbol,
+                        user_id: userId,
+                        game_over: gameOver || tie,
+                        winner_id: gameOver ? userId : null
+                    })
+                });
+                defUpdate();
+            } catch (e) {
+                document.getElementById('status').innerText = "Ошибка отправки хода.";
+            }
+        }
+
+        function checkWin(b, s) {
             const winPatterns = [, [3, 4, 5], [6, 7, 8],
 , [1, 4, 7], [2, 5, 8],
 , [2, 4, 6]
             ];
-            return winPatterns.some(pattern => {
-                return pattern.every(i => board[i] === mySymbol);
-            });
+            return winPatterns.some(p => p.every(i => b[i] === s));
         }
+
+        // Запуск цикла постоянного обновления раз в секунду
+        setInterval(defUpdate, 1000);
+        defUpdate();
     </script>
 </body>
 </html>
