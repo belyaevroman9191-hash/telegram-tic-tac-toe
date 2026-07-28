@@ -34,17 +34,29 @@ app.add_middleware(
 db_path = os.path.join(os.path.dirname(__file__), "tic_tac_toe.db")
 conn = sqlite3.connect(db_path, check_same_thread=False)
 cursor = conn.cursor()
+
+# Таблица пользователей со скинами
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
     username TEXT,
     wins INTEGER DEFAULT 0,
-    losses INTEGER DEFAULT 0
+    losses INTEGER DEFAULT 0,
+    current_skin TEXT DEFAULT 'classic',
+    unlocked_skins TEXT DEFAULT 'classic'
 )
 """)
 conn.commit()
 
-# Хранилище комнат в памяти
+# Определение визуальных элементов скинов
+SKINS_CONFIG = {
+    "classic": {"name": "Классика", "cost": 0, "x": "❌", "o": "⭕"},
+    "ninja": {"name": "Дуэль Ниндзя", "cost": 3, "x": "⚔️", "o": "🛡️"},
+    "elements": {"name": "Магия стихий", "cost": 5, "x": "🔥", "o": "💧"},
+    "halloween": {"name": "Хэллоуин", "cost": 10, "x": "👻", "o": "🎃"},
+    "space": {"name": "Космос", "cost": 15, "x": "🚀", "o": "👽"}
+}
+
 game_rooms = {}
 
 @dp.message(Command("start"))
@@ -57,10 +69,9 @@ async def cmd_start(message: types.Message):
     conn.commit()
     
     args = message.text.split()
-    bot_info = await bot.get_me()
     
-    if len(args) > 1 and args[1].startswith("game_"):
-        room_id = args[1].replace("game_", "")
+    if len(args) > 1 and args[0].startswith("game_"):
+        room_id = args[0].replace("game_", "")
         link = f"{SERVER_URL}/game?room={room_id}&user={user_id}"
         await message.answer(
             "⚔️ Вы приняли вызов! Нажмите кнопку ниже, чтобы войти в игру:",
@@ -113,7 +124,6 @@ async def get_game():
     html_path = os.path.join(os.path.dirname(__file__), "index.html")
     with open(html_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
-
 @app.get("/api/state/{room_id}/{user_id}")
 async def get_state(room_id: str, user_id: str):
     current_time = time.time()
@@ -154,15 +164,53 @@ async def get_state(room_id: str, user_id: str):
             room["status"] = "left"
             room["winner"] = "opponent_left"
 
-    my_symbol = "X" if room["player1"] == user_id else "O"
-    cursor.execute("SELECT IFNULL(wins, 0), IFNULL(losses, 0) FROM users WHERE user_id = ?", (int(user_id) if user_id.isdigit() else 0,))
+    # Получаем информацию о скинах и статистике из БД
+    cursor.execute("SELECT IFNULL(wins, 0), IFNULL(losses, 0), current_skin, unlocked_skins FROM users WHERE user_id = ?", (int(user_id) if user_id.isdigit() else 0,))
     user_stats = cursor.fetchone()
-    wins, losses = user_stats if user_stats else (0, 0)
+    wins, losses, current_skin, unlocked_skins = user_stats if user_stats else (0, 0, 'classic', 'classic')
+
+    # Получаем скин создателя (Игрок 1)
+    cursor.execute("SELECT current_skin FROM users WHERE user_id = ?", (int(room["player1"]) if room["player1"].isdigit() else 0,))
+    p1_skin_row = cursor.fetchone()
+    p1_skin = p1_skin_row[0] if p1_skin_row else "classic"
+
+    # Получаем скин оппонента (Игрок 2)
+    p2_skin = "classic"
+    if room["player2"]:
+        cursor.execute("SELECT current_skin FROM users WHERE user_id = ?", (int(room["player2"]) if room["player2"].isdigit() else 0,))
+        p2_skin_row = cursor.fetchone()
+        p2_skin = p2_skin_row[0] if p2_skin_row else "classic"
+
+    # Конвертируем X и O в эмодзи согласно скинам
+    visual_board = []
+    for cell in room["board"]:
+        if cell == "X":
+            visual_board.append(SKINS_CONFIG.get(p1_skin, SKINS_CONFIG["classic"])["x"])
+        elif cell == "O":
+            visual_board.append(SKINS_CONFIG.get(p2_skin, SKINS_CONFIG["classic"])["o"])
+        else:
+            visual_board.append("")
+
+    my_symbol = "X" if room["player1"] == user_id else "O"
+    my_visual_symbol = SKINS_CONFIG.get(p1_skin if my_symbol == "X" else p2_skin, SKINS_CONFIG["classic"])["x" if my_symbol == "X" else "o"]
     
+    visual_winner = room["winner"]
+    if room["winner"] == "X": visual_winner = SKINS_CONFIG.get(p1_skin, SKINS_CONFIG["classic"])["x"]
+    elif room["winner"] == "O": visual_winner = SKINS_CONFIG.get(p2_skin, SKINS_CONFIG["classic"])["o"]
+
     return {
-        "board": room["board"], "status": room["status"], "symbol": my_symbol,
-        "turn": room["turn"], "winner": room["winner"], "user_wins": wins, "user_losses": losses,
-        "rematch_requests": room.get("rematch_requests", []), "rematch_declined": room.get("rematch_declined", False)
+        "board": visual_board, 
+        "status": room["status"], 
+        "symbol": my_symbol,
+        "visual_symbol": my_visual_symbol,
+        "turn": room["turn"], 
+        "winner": visual_winner, 
+        "user_wins": wins, 
+        "user_losses": losses,
+        "current_skin": current_skin,
+        "unlocked_skins": unlocked_skins,
+        "rematch_requests": room.get("rematch_requests", []), 
+        "rematch_declined": room.get("rematch_declined", False)
     }
 
 @app.post("/api/move/{room_id}")
@@ -172,8 +220,10 @@ async def make_move(room_id: str, data: dict = Body(...)):
     index, symbol, user_id = data.get("index"), data.get("symbol"), data.get("user_id")
     if "last_seen" in room and user_id: room["last_seen"][str(user_id)] = time.time()
     if room["board"][index] != "" or room["turn"] != symbol or room["status"] != "active": return {"success": False}
+    
     room["board"][index] = symbol
     room["turn"] = "O" if symbol == "X" else "X"
+    
     if data.get("game_over") and data.get("winner_id"):
         room["status"] = "over"
         room["winner"] = symbol
@@ -186,6 +236,39 @@ async def make_move(room_id: str, data: dict = Body(...)):
         room["status"] = "over"
         room["winner"] = "Ничья"
     return {"success": True}
+
+@app.post("/api/shop/{user_id}")
+async def handle_shop(user_id: str, data: dict = Body(...)):
+    user_id = int(user_id) if user_id.isdigit() else 0
+    action = data.get("action")
+    skin_id = data.get("skin_id")
+    
+    if skin_id not in SKINS_CONFIG: raise HTTPException(status_code=400, detail="Skin not found")
+        
+    cursor.execute("SELECT wins, unlocked_skins FROM users WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    if not row: raise HTTPException(status_code=404, detail="User not found")
+    wins, unlocked_skins = row[0], row[1] or "classic"
+    unlocked_list = unlocked_skins.split(",")
+    
+    if action == "equip":
+        if skin_id in unlocked_list:
+            cursor.execute("UPDATE users SET current_skin = ? WHERE user_id = ?", (skin_id, user_id))
+            conn.commit()
+            return {"success": True, "message": "Скин успешно экипирован"}
+        return {"success": False, "message": "Скин еще не куплен"}
+        
+    elif action == "buy":
+        if skin_id in unlocked_list: return {"success": False, "message": "Скин уже куплен"}
+        cost = SKINS_CONFIG[skin_id]["cost"]
+        if wins >= cost:
+            new_wins = wins - cost
+            unlocked_list.append(skin_id)
+            new_unlocked = ",".join(unlocked_list)
+            cursor.execute("UPDATE users SET wins = ?, unlocked_skins = ?, current_skin = ? WHERE user_id = ?", (new_wins, new_unlocked, skin_id, user_id))
+            conn.commit()
+            return {"success": True, "message": "Скин успешно куплен!"}
+        return {"success": False, "message": "Недостаточно побед для покупки"}
 
 @app.post("/api/rematch/{room_id}")
 async def handle_rematch(room_id: str, data: dict = Body(...)):
@@ -211,15 +294,7 @@ async def handle_rematch(room_id: str, data: dict = Body(...)):
 
 async def main():
     bot_task = asyncio.create_task(dp.start_polling(bot))
-    # ИСПРАВЛЕНО: Полная стабилизация uvicorn в один поток
-    config = uvicorn.Config(
-        app, 
-        host="0.0.0.0", 
-        port=8000, 
-        log_level="info",
-        workers=1,
-        loop="asyncio"
-    )
+    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info", workers=1, loop="asyncio")
     server = uvicorn.Server(config)
     await server.serve()
     bot_task.cancel()
