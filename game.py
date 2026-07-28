@@ -1,8 +1,13 @@
+import os
+import sys
+
+# Жестко запрещаем Render создавать дублирующие процессы бота при старте
+os.environ["WEB_CONCURRENCY"] = "1"
+
 import asyncio
 import json
 import logging
 import sqlite3
-import os
 import time
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
@@ -39,6 +44,7 @@ CREATE TABLE IF NOT EXISTS users (
 """)
 conn.commit()
 
+# Хранилище комнат в памяти
 game_rooms = {}
 
 @dp.message(Command("start"))
@@ -53,10 +59,8 @@ async def cmd_start(message: types.Message):
     args = message.text.split()
     bot_info = await bot.get_me()
     
-    # Если зашли по инвайт-ссылке друга
     if len(args) > 1 and args[1].startswith("game_"):
         room_id = args[1].replace("game_", "")
-        # Формируем прямую ссылку на WebApp, где четко указаны параметры комнаты и зашедшего игрока
         link = f"{SERVER_URL}/game?room={room_id}&user={user_id}"
         await message.answer(
             "⚔️ Вы приняли вызов! Нажмите кнопку ниже, чтобы войти в игру:",
@@ -70,7 +74,7 @@ async def cmd_start(message: types.Message):
     markup = types.ReplyKeyboardMarkup(
         keyboard=[
             [types.KeyboardButton(text="🚪 Войти в свою комнату", web_app=types.WebAppInfo(url=link))],
-            [types.KeyboardButton(text="🏆 Table лидеров"), types.KeyboardButton(text="🔗 Позвать друга")]
+            [types.KeyboardButton(text="🏆 Таблица лидеров"), types.KeyboardButton(text="🔗 Позвать друга")]
         ],
         resize_keyboard=True,
         is_persistent=True
@@ -96,7 +100,6 @@ async def cmd_top(message: types.Message):
 @dp.message(lambda msg: msg.text == "🔗 Позвать друга")
 async def cmd_invite_link(message: types.Message):
     bot_info = await bot.get_me()
-    # Ссылка-команда глубокого связывания в Telegram, которая не ломается на ПК
     deep_link = f"https://t.me/{bot_info.username}?start=game_{message.from_user.id}"
     
     markup = types.InlineKeyboardMarkup(inline_keyboard=[
@@ -135,7 +138,6 @@ async def get_state(room_id: str, user_id: str):
         room["last_seen"] = {}
     room["last_seen"][user_id] = current_time
     
-    # Четкое распределение по комнатам без ложных wait-состояний
     if room["player1"] != user_id:
         if room["player2"] is None or room["player2"] == user_id:
             room["player2"] = user_id
@@ -209,8 +211,7 @@ async def handle_rematch(room_id: str, data: dict = Body(...)):
 
 async def main():
     bot_task = asyncio.create_task(dp.start_polling(bot))
-    
-    # ИСПРАВЛЕНО: Жестко задаем workers=1 и отключаем цикличный loop-conflict
+    # ИСПРАВЛЕНО: Полная стабилизация uvicorn в один поток
     config = uvicorn.Config(
         app, 
         host="0.0.0.0", 
@@ -222,3 +223,7 @@ async def main():
     server = uvicorn.Server(config)
     await server.serve()
     bot_task.cancel()
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    asyncio.run(main())
