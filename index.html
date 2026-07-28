@@ -57,6 +57,7 @@
     <div id="rematch-modal" class="modal">
         <div class="modal-content">
             <div style="font-size: 1.1rem; font-weight: bold;">Противник хочет с Вами сыграть еще раз!🔄</div>
+            <button id="close-btn" class="btn" style="background: #ff3b30;" onclick="if(tg)tg.close();">Выйти в меню</button>
             <div class="modal-buttons">
                 <button class="btn btn-accept" style="display:block;" onclick="acceptRematch()">Принять</button>
                 <button class="btn btn-decline" style="display:block;" onclick="declineRematch()">Отклонить</button>
@@ -98,9 +99,9 @@
         let isMyTurn = false;
         let isGameActive = false;
 
-        const winPatterns = [, [3, 4, 5], [6, 7, 8],
-, [1, 4, 7], [2, 5, 8],
-, [2, 4, 6]
+        const winPatterns = [, 0, 1, 2], [3, 4, 5], [6, 7, 8],
+, [0, 3, 6], [1, 4, 7], [2, 5, 8], 
+, [0, 4, 8] [2, 4, 6]
         ];
 
         function checkWin(b, s) {
@@ -142,15 +143,19 @@
 
                 if (data.status === "left") {
                     isGameActive = false;
-                    document.getElementById('status').innerText = "⌛ Противник покинул игру. Выход...";
+                    document.getElementById('status').innerText = "⌛ Противник покинул игру.";
                     document.getElementById('board').style.opacity = "0.3";
                     document.getElementById('board').style.pointerEvents = "none";
                     rematchBtn.style.display = "none";
                     rematchModal.style.display = "none";
                     
+                    // Показываем кнопку ручного выхода для ПК версии
+                    document.getElementById('close-btn').style.display = "block";
+                    
+                    // Попытка автоматического закрытия шторки
                     setTimeout(() => {
                         if (tg) tg.close();
-                    }, 2500);
+                    }, 2000);
                     return;
                 }
 
