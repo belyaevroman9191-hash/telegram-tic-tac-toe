@@ -8,10 +8,18 @@
     <style>
         body { font-family: sans-serif; text-align: center; background: #1c1c1e; color: #ffffff; margin: 0; padding: 20px; }
         .board { display: grid; grid-template-columns: repeat(3, 90px); grid-gap: 10px; justify-content: center; margin: 30px auto; }
-        .cell { width: 90px; height: 90px; background: #2c2c2e; font-size: 2.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 12px; font-weight: bold; }
+        .cell { width: 90px; height: 90px; background: #2c2c2e; font-size: 2.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 12px; font-weight: bold; transition: all 0.3s ease; }
         .cell.x { color: #ff3b30; }
         .cell.o { color: #007aff; }
         #status { font-size: 1.2rem; margin-bottom: 10px; color: #eaeaea; }
+        
+        /* СТИЛЬ ДЛЯ ПЕРЕЧЕРКИВАНИЯ: Подсветка выигрышной комбинации */
+        .cell.win-line {
+            background: #34c759 !important; /* Красивый зеленый цвет для победной линии */
+            color: #ffffff !important;
+            transform: scale(1.05); /* Слегка увеличиваем выигравшие клетки */
+            box-shadow: 0 0 15px rgba(52, 199, 89, 0.6);
+        }
     </style>
 </head>
 <body>
@@ -58,7 +66,10 @@
                 const cells = document.querySelectorAll('.cell');
                 boardState.forEach((val, idx) => {
                     cells[idx].innerText = val;
-                    cells[idx].className = "cell" + (val ? " " + val.toLowerCase() : "");
+                    // Сохраняем класс выигрышной линии при обновлении от сервера
+                    if (!cells[idx].classList.contains('win-line')) {
+                        cells[idx].className = "cell" + (val ? " " + val.toLowerCase() : "");
+                    }
                 });
 
                 if (data.status === "wait") {
@@ -71,6 +82,11 @@
                 } else if (data.status === "over") {
                     isGameActive = false;
                     document.getElementById('status').innerText = data.winner === "Ничья" ? "Ничья! 🤝" : (data.winner === mySymbol ? "Вы победили! 🎉" : `Победил игрок ${data.winner}! 😔`);
+                    
+                    // Если кто-то победил, подсвечиваем линию и у противника при обновлении
+                    if (data.winner !== "Ничья") {
+                        highlightWin(boardState, data.winner);
+                    }
                 }
             } catch (err) {
                 document.getElementById('status').innerText = "Ошибка синхронизации.";
@@ -86,6 +102,10 @@
 
             let gameOver = checkWin(boardState, mySymbol);
             let tie = !boardState.includes("") && !gameOver;
+
+            if (gameOver) {
+                highlightWin(boardState, mySymbol);
+            }
 
             try {
                 await fetch(`/api/move/${roomId}`, {
@@ -105,13 +125,26 @@
             }
         }
 
+        // Функция, которая находит и подсвечивает выигрышные клетки
+        function highlightWin(b, s) {
+            const winPatterns = [, [3, 4, 5], [6, 7, 8],
+, [1, 4, 7], [2, 5, 8],
+, [2, 4, 6]
+            ];
+            const cells = document.querySelectorAll('.cell');
+            winPatterns.forEach(p => {
+                if (p.every(i => b[i] === s)) {
+                    p.forEach(i => cells[i].classList.add('win-line'));
+                }
+            });
+        }
+
         function checkWin(b, s) {
             const winPatterns = [
                 [ 0, 1, 2 ], [ 3, 4, 5 ], [ 6, 7, 8 ], // 3 Горизонтали
                 [ 0, 3, 6 ], [ 1, 4, 7 ], [ 2, 5, 8 ], // 3 Вертикали
                 [ 0, 4, 8 ], [ 2, 4, 6 ]              // 2 Диагонали
             ];
-
             return winPatterns.some(p => p.every(i => b[i] === s));
         }
 
