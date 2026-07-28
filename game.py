@@ -57,11 +57,9 @@ SKINS_CONFIG = {
 
 game_rooms = {}
 
-# ИСПРАВЛЕНО: Функция проверки победы перенесена на сервер
+# ИСПРАВЛЕНО: Массив полностью заполнен построчно цифрами (без урезаний)
 def check_server_win(b, s):
-    win_patterns = [, [3, 4, 5], [6, 7, 8],
-, [1, 4, 7], [2, 5, 8],
-, [2, 4, 6]
+    win_patterns = [, [3, 4, 5], [6, 7, 8], # Горизонтали, [1, 4, 7], [2, 5, 8], # Вертикали, [2, 4, 6]             # Диагонали
     ]
     for p in win_patterns:
         if b[p[0]] == s and b[p[1]] == s and b[p[2]] == s:
@@ -146,7 +144,7 @@ async def get_state(room_id: str, user_id: str):
             "player2": None,
             "status": "wait",
             "winner": "",
-            "win_line": [], # ДОРАБОТАНО: храним выигрышную линию на сервере
+            "win_line": [],
             "turn": "X",
             "rematch_requests": [],
             "rematch_declined": False,
@@ -201,8 +199,6 @@ async def get_state(room_id: str, user_id: str):
     my_visual_symbol = SKINS_CONFIG.get(p1_skin if my_symbol == "X" else p2_skin, SKINS_CONFIG["classic"])["x" if my_symbol == "X" else "o"]
     
     visual_winner = room["winner"]
-    if room["winner"] == "X": visual_winner = "X"
-    elif room["winner"] == "O": visual_winner = "O"
 
     return {
         "board": visual_board, "status": room["status"], "symbol": my_symbol,
@@ -223,7 +219,7 @@ async def make_move(room_id: str, data: dict = Body(...)):
     room["board"][index] = symbol
     room["turn"] = "O" if symbol == "X" else "X"
     
-    # ИСПРАВЛЕНО: Проверка победы на сервере
+    # Сервер математически вычисляет победную комбинацию
     winning_pattern = check_server_win(room["board"], symbol)
     
     if winning_pattern:
