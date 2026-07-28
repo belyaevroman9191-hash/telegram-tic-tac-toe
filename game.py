@@ -130,7 +130,6 @@ async def make_move(room_id: str, data: dict = Body(...)):
     room = game_rooms[room_id]
     index = data.get("index")
     symbol = data.get("symbol")
-    user_id = data.get("user_id")
     
     if room["board"][index] != "" or room["turn"] != symbol or room["status"] != "active":
         return {"success": False}
@@ -138,13 +137,14 @@ async def make_move(room_id: str, data: dict = Body(...)):
     room["board"][index] = symbol
     room["turn"] = "O" if symbol == "X" else "X"
     
-    # Проверка победы во фронтенде дублируется здесь для БД
+    # СЕРВЕРНАЯ ПРОВЕРКА ОКОНЧАНИЯ ИГРЫ
     if data.get("game_over") and data.get("winner_id"):
         room["status"] = "over"
         room["winner"] = symbol
         cursor.execute("UPDATE users SET wins = wins + 1 WHERE user_id = ?", (int(data["winner_id"]),))
         conn.commit()
-    elif "" not in room["board"] and not data.get("game_over"):
+    # Жестко проверяем: если пустых клеток нет — это гарантированная ничья
+    elif "" not in room["board"]:
         room["status"] = "over"
         room["winner"] = "Ничья"
         
