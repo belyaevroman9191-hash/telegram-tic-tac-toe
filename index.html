@@ -46,21 +46,20 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         
-        let roomId = urlParams.get('room');
-        let userId = urlParams.get('user');
-        
-        if (!roomId || roomId === "null" || roomId === null || roomId === "") {
+        // ИСПРАВЛЕНИЕ: Если roomId равен null или строке "null", принудительно создаем случайную комнату
+        if (!roomId || roomId === "null" || roomId === null) {
             roomId = "lobby_" + Math.floor(Math.random() * 100000);
         }
-        if (!userId || userId === "null" || userId === null || userId === "") {
+        if (!userId || userId === "null" || userId === null) {
             userId = "player_" + Math.floor(Math.random() * 100000);
         }
-
-
+        
         const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const host = window.location.host;
         
+        // Подключаемся по проверенному адресу комнаты
         const socket = new WebSocket(`${wsProtocol}//${host}/ws/${roomId}`);
+
 
         socket.onopen = function(e) {
             document.getElementById('status').innerText = "Подключение установлено! Ожидаем игроков...";
