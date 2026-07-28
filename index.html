@@ -47,7 +47,7 @@
         let isMyTurn = false;
         let isGameActive = false;
 
-        async defUpdate() {
+        async function defUpdate() {
             try {
                 const response = await fetch(`/api/state/${roomId}/${userId}`);
                 const data = await response.json();
