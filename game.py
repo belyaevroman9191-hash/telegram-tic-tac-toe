@@ -7,20 +7,20 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
+# ИСПРАВЛЕНО: Добавлен импорт для настройки CORS-политики безопасности
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # Токен вашего бота от @BotFather
 TOKEN = "8756387431:AAGFETfMx3WoBCxATBvYWutsuRI9-8VkU_I"
 # URL вашего сервера на Render
-SERVER_URL = "https://telegram-tic-tac-toe-8dv1.onrender.com" 
+SERVER_URL = "https://onrender.com" 
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
-from fastapi.middleware.cors import CORSMiddleware
-
 app = FastAPI()
 
-# ИСПРАВЛЕНИЕ: Открываем сетевые порты сервера для стабильного подключения WebSockets
+# ИСПРАВЛЕНО: Настройка CORS, чтобы Render не блокировал запросы WebSockets от JavaScript
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,7 +28,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # Инициализация базы данных SQLite в правильной рабочей директории
 db_path = os.path.join(os.path.dirname(__file__), "tic_tac_toe.db")
@@ -52,13 +51,12 @@ async def cmd_start(message: types.Message):
     user_id = message.from_user.id
     username = message.from_user.username or message.from_user.first_name
     
-    # Добавляем пользователя или обновляем его имя, если изменилось
     cursor.execute("INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)", (user_id, username))
     cursor.execute("UPDATE users SET username = ? WHERE user_id = ?", (username, user_id))
     conn.commit()
     
     args = message.text.split()
-    # Если игрок перешел по ссылке друга (проверяем наличие аргументов)
+    # Если игрок перешел по ссылке друга
     if len(args) > 1 and args[1].startswith("game_"):
         room_id = args[1].replace("game_", "")
         link = f"{SERVER_URL}/game?room={room_id}&user={user_id}"
@@ -72,7 +70,7 @@ async def cmd_start(message: types.Message):
 
     # Если игрок создает новую игру самостоятельно
     bot_info = await bot.get_me()
-    invite_link = f"https://t.me/{bot_info.username}?start=game_{user_id}"
+    invite_link = f"https://t.me{bot_info.username}?start=game_{user_id}"
     
     link = f"{SERVER_URL}/game?room={user_id}&user={user_id}"
     markup = types.InlineKeyboardMarkup(inline_keyboard=[
@@ -96,16 +94,10 @@ async def cmd_top(message: types.Message):
     await message.answer(text, parse_mode="Markdown")
 
 # --- ЛОГИКА ВЕБ-СЕРВЕРА И WEBSOCKETS ---
+# ИСПРАВЛЕНО: Теперь сервер выдает игру и по главному адресу, и по адресу /game
 @app.get("/")
 @app.get("/game")
 async def get_game():
-    with open("index.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
-
-# --- ЛОГИКА ВЕБ-СЕРВЕРА И WEBSOCKETS ---
-@app.get("/game")
-async def get_game():
-    # Отдает файл index.html, который лежит в той же папке
     with open("index.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
@@ -155,19 +147,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
         if not rooms[room_id]:
             del rooms[room_id]
 
-# --- ОДНОВРЕМЕННЫЙ ЗАПУСК БОТА И СЕРВЕРА В ОДНОМ ПОТОКЕ ---
+# --- ЗАПУСК БОТА И СЕРВЕРА В ОДНОМ ЦИКЛЕ СОБЫТИЙ ---
 async def main():
-    # Корректно запускаем фоновое прослушивание Telegram API
     bot_task = asyncio.create_task(dp.start_polling(bot))
-    
-    # Настраиваем конфигурацию веб-сервера Uvicorn
     config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
     server = uvicorn.Server(config)
-    
-    # Запускаем веб-сервер внутри текущего бесконечного цикла
     await server.serve()
-    
-    # Останавливаем бота при выключении сервера
     bot_task.cancel()
 
 if __name__ == "__main__":
