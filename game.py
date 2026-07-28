@@ -132,8 +132,23 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
 async def start_bot():
     await dp.start_polling(bot)
 
+# --- ЗАМЕНИТЕ САМЫЙ КОНЕЦ ФАЙЛА GAME.PY НА ЭТОТ КОД ---
+
+async def main():
+    # Запускаем фоновую задачу для Telegram-бота
+    bot_task = asyncio.create_task(dp.start_polling(bot))
+    
+    # Настраиваем и запускаем веб-сервер uvicorn внутри текущего цикла событий
+    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+    server = uvicorn.Server(config)
+    
+    # Запускаем сервер и ждем его выполнения
+    await server.serve()
+    
+    # Если сервер остановится, отменяем задачу бота
+    bot_task.cancel()
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    loop = asyncio.get_event_loop()
-    loop.create_task(start_bot())
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Корректный запуск для современных версий Python
+    asyncio.run(main())
