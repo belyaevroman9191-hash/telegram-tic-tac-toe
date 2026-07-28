@@ -58,11 +58,9 @@
                 }
 
         
-        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const host = window.location.host;
-        
-        // Подключаемся по проверенному адресу комнаты
-        const socket = new WebSocket(`${wsProtocol}//${host}/ws/${roomId}`);
+        // ИСПРАВЛЕНИЕ: Жестко прописываем защищенный wss адрес вашего сервера Render
+        const socket = new WebSocket(`wss://://onrender.com{roomId}`);
+
 
 
         socket.onopen = function(e) {
