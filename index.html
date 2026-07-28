@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Крестики-Нолики</title>
+    <script src="https://telegram.org"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #1c1c1e; color: #ffffff; margin: 0; padding: 20px; }
+        .board { display: grid; grid-template-columns: repeat(3, 90px); grid-gap: 10px; justify-content: center; margin: 30px auto; }
+        .cell { width: 90px; height: 90px; background: #2c2c2e; font-size: 2.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 12px; font-weight: bold; }
+        .cell.x { color: #ff3b30; }
+        .cell.o { color: #007aff; }
+        #status { font-size: 1.2rem; margin-bottom: 10px; color: #eaeaea; }
+    </style>
+</head>
+<body>
+
+    <h2 style="margin-top: 10px;">Крестики-Нолики ❌⭕</h2>
+    <div id="status">Загрузка игры...</div>
+    
+    <div class="board" id="board">
+        <div class="cell" onclick="makeMove(0)"></div>
+        <div class="cell" onclick="makeMove(1)"></div>
+        <div class="cell" onclick="makeMove(2)"></div>
+        <div class="cell" onclick="makeMove(3)"></div>
+        <div class="cell" onclick="makeMove(4)"></div>
+        <div class="cell" onclick="makeMove(5)"></div>
+        <div class="cell" onclick="makeMove(6)"></div>
+        <div class="cell" onclick="makeMove(7)"></div>
+        <div class="cell" onclick="makeMove(8)"></div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        const userId = urlParams.get('user');
+
+        // Автоматически определяем адрес WebSocket сервера на основе текущего хоста
+        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws/${roomId}`);
+
+        let board = ["", "", "", "", "", "", "", "", ""];
+        let mySymbol = ""; 
+        let isMyTurn = false;
+        let gameActive = false;
+
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === "init") {
+                mySymbol = data.symbol;
+                isMyTurn = (mySymbol === "X");
+                document.getElementById('status').innerText = `Вы играете за: ${mySymbol}. Ожидаем оппонента...`;
+            }
+            
+            if (data.type === "start") {
+                gameActive = true;
+                document.getElementById('status').innerText = isMyTurn ? "Ваш ход!" : "Ход противника...";
+            }
+            
+            if (data.type === "move") {
+                board[data.index] = data.symbol;
+                const cells = document.querySelectorAll('.cell');
+                cells[data.index].innerText = data.symbol;
+                cells[data.index].classList.add(data.symbol.toLowerCase());
+                isMyTurn = true;
+                document.getElementById('status').innerText = "Ваш ход!";
+            }
+
+            if (data.type === "game_over") {
+                gameActive = false;
+                document.getElementById('status').innerText = data.winner === "Ничья" ? "Ничья! 🤝" : `Победил игрок ${data.winner}! 🎉`;
+            }
+        };
+
+        function makeMove(index) {
+            if (!gameActive || !isMyTurn || board[index] !== "") return;
+            
+            board[index] = mySymbol;
+            const cells = document.querySelectorAll('.cell');
+            cells[index].innerText = mySymbol;
+            cells[index].classList.add(mySymbol.toLowerCase());
+            isMyTurn = false;
+            document.getElementById('status').innerText = "Ход противника...";
+            
+            socket.send(JSON.stringify({ type: "move", index: index, symbol: mySymbol }));
+            
+            if (checkWin()) {
+                gameActive = false;
+                document.getElementById('status').innerText = "Вы победили! 🎉";
+                socket.send(JSON.stringify({ type: "game_over", winner: mySymbol, winner_id: userId }));
+            } else if (!board.includes("")) {
+                gameActive = false;
+                document.getElementById('status').innerText = "Ничья! 🤝";
+                socket.send(JSON.stringify({ type: "game_over", winner: "Ничья" }));
+            }
+        }
+
+        function checkWin() {
+            const winPatterns = [, [3, 4, 5], [6, 7, 8],
+, [1, 4, 7], [2, 5, 8],
+, [2, 4, 6]
+            ];
+            return winPatterns.some(pattern => {
+                return pattern.every(i => board[i] === mySymbol);
+            });
+        }
+    </script>
+</body>
+</html>
