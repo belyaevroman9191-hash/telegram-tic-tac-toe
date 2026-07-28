@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Крестики-Нолики</title>
-    <!-- Подключение правильного скрипта Telegram WebApp API -->
     <script src="https://telegram.org"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1c1c1e; color: #ffffff; margin: 0; padding: 20px; }
@@ -33,37 +32,43 @@
     </div>
 
     <script>
-        // ИСПРАВЛЕНИЕ: Защита от запуска в обычном браузере
+        // ИСПРАВЛЕНО: Безопасная проверка наличия Telegram WebApp API
         const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-        if (tg) tg.expand();
-
-
-        const urlParams = new URLSearchParams(window.location.search);
-        
-        // АВТО-ЗАЩИТА: Если параметров нет в ссылке (нажали кнопку меню), генерируем их
-        let roomId = urlParams.get('room');
-        let userId = urlParams.get('user');
-        
-        if (!roomId || roomId === "null") {
-            roomId = "lobby_" + Math.floor(Math.random() * 100000);
-        }
-        if (!userId || userId === "null") {
-            userId = "player_" + Math.floor(Math.random() * 100000);
+        if (tg) {
+            tg.expand();
         }
 
-        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const host = window.location.host;
-        
-        // Подключаемся к WebSocket на Render
-        const socket = new WebSocket(`${wsProtocol}//${host}/ws/${roomId}`);
-
+        // ИСПРАВЛЕНО: Объявление базовых игровых переменных в самом начале
         let board = ["", "", "", "", "", "", "", "", ""];
         let mySymbol = ""; 
         let isMyTurn = false;
         let gameActive = false;
 
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        let roomId = urlParams.get('room');
+        let userId = urlParams.get('user');
+        
+        if (!roomId || roomId === "null" || roomId === null || roomId === "") {
+            roomId = "lobby_" + Math.floor(Math.random() * 100000);
+        }
+        if (!userId || userId === "null" || userId === null || userId === "") {
+            userId = "player_" + Math.floor(Math.random() * 100000);
+        }
+
+
+        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const host = window.location.host;
+        
+        const socket = new WebSocket(`${wsProtocol}//${host}/ws/${roomId}`);
+
         socket.onopen = function(e) {
-            console.log("Соединение с сервером установлено успешно!");
+            document.getElementById('status').innerText = "Подключение установлено! Ожидаем игроков...";
+            console.log("WebSocket подключен.");
+        };
+
+        socket.onerror = function(err) {
+            document.getElementById('status').innerText = "Ошибка подключения к серверу.";
         };
 
         socket.onmessage = function(event) {
@@ -119,7 +124,9 @@
         }
 
         function checkWin() {
-            const winPatterns = [, [3, 4, 5], [6, 7, 8], // Горизонтали, [1, 4, 7], [2, 5, 8], // Вертикали, [2, 4, 6]             // Диагонали
+            const winPatterns = [, [3, 4, 5], [6, 7, 8],
+, [1, 4, 7], [2, 5, 8],
+, [2, 4, 6]
             ];
             return winPatterns.some(pattern => {
                 return pattern.every(i => board[i] === mySymbol);
