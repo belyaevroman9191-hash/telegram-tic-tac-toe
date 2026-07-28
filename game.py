@@ -103,13 +103,20 @@ async def cmd_top(message: types.Message):
 @dp.message(lambda msg: msg.text == "🔗 Позвать друга")
 async def cmd_invite_link(message: types.Message):
     bot_info = await bot.get_me()
-    # ИСПРАВЛЕНО: Добавлен слэш "/" после t.me в инвайт-ссылке
+    # Четкая ссылка с правильным слэшэм после t.me/
     invite_link = f"https://t.me/{bot_info.username}/play?startapp=room_{message.from_user.id}"
     
     markup = types.InlineKeyboardMarkup(inline_keyboard=[
-        [types.InlineKeyboardButton(text="Вызвать друга на дуэль ⚔️", switch_inline_query=f"Вызываю тебя на дуэль! Переходи: {invite_link}")]
+        [types.InlineKeyboardButton(text="⚔️ Принять вызов (Играть)", url=invite_link)]
     ])
-    await message.answer("Нажмите на кнопку ниже, чтобы переслать приглашение другу в чат:", reply_markup=markup)
+    
+    # Одно сообщение с форматированием, готовое к пересылке в любой чат
+    await message.answer(
+        f"💬 **Перешлите это сообщение другу:**\n\n"
+        f"⚔️ Вызываю тебя на дуэль в Крестики-Нолики! Нажми на кнопку ниже, чтобы войти в игру:", 
+        reply_markup=markup,
+        parse_mode="Markdown"
+    )
 
 @app.get("/")
 @app.get("/game")
