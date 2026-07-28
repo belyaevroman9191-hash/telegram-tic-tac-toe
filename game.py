@@ -5,22 +5,18 @@ import sqlite3
 import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.responses import HTMLResponse
-# ИСПРАВЛЕНО: Добавлен импорт для настройки CORS-политики безопасности
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-# Токен вашего бота от @BotFather
 TOKEN = "8756387431:AAGFETfMx3WoBCxATBvYWutsuRI9-8VkU_I"
-# URL вашего сервера на Render
 SERVER_URL = "https://telegram-tic-tac-toe-8dv1.onrender.com" 
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 app = FastAPI()
 
-# ИСПРАВЛЕНО: Настройка CORS, чтобы Render не блокировал запросы WebSockets от JavaScript
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,7 +25,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Инициализация базы данных SQLite в правильной рабочей директории
 db_path = os.path.join(os.path.dirname(__file__), "tic_tac_toe.db")
 conn = sqlite3.connect(db_path, check_same_thread=False)
 cursor = conn.cursor()
@@ -42,10 +37,9 @@ CREATE TABLE IF NOT EXISTS users (
 """)
 conn.commit()
 
-# Хранилище активных WebSocket подключений: {room_id: [websocket1, websocket2]}
-rooms = {}
+# Хранилище комнат в памяти: {room_id: {"board": [...], "player1": ID, "player2": ID, "status": "wait"/"active"/"over", "winner": ""}}
+game_rooms = {}
 
-# --- ЛОГИКА ТЕЛЕГРАМ БОТА ---
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     user_id = message.from_user.id
@@ -56,7 +50,6 @@ async def cmd_start(message: types.Message):
     conn.commit()
     
     args = message.text.split()
-    # Если игрок перешел по ссылке друга
     if len(args) > 1 and args[1].startswith("game_"):
         room_id = args[1].replace("game_", "")
         link = f"{SERVER_URL}/game?room={room_id}&user={user_id}"
@@ -68,7 +61,6 @@ async def cmd_start(message: types.Message):
         )
         return
 
-    # Если игрок создает новую игру самостоятельно
     bot_info = await bot.get_me()
     invite_link = f"https://t.me{bot_info.username}?start=game_{user_id}"
     
@@ -93,64 +85,71 @@ async def cmd_top(message: types.Message):
         text += f"{i}. @{username} — {wins} 🥇\n"
     await message.answer(text, parse_mode="Markdown")
 
-# --- ЛОГИКА ВЕБ-СЕРВЕРА И WEBSOCKETS ---
-# ИСПРАВЛЕНО: Теперь сервер выдает игру и по главному адресу, и по адресу /game
 @app.get("/")
 @app.get("/game")
 async def get_game():
-    with open("index.html", "r", encoding="utf-8") as f:
+    html_path = os.path.join(os.path.dirname(__file__), "index.html")
+    with open(html_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
-# ИСПРАВЛЕНО: Добавлен альтернативный маршрут с закрывающим слэшем для прокси Render
-@app.websocket("/ws/{room_id}")
-@app.websocket("/ws/{room_id}/")
-async def websocket_endpoint(websocket: WebSocket, room_id: str):
-    await websocket.accept()
+# --- НАДЕЖНЫЙ HTTP API ДЛЯ ИГРЫ ---
 
-    if room_id not in rooms:
-        rooms[room_id] = []
+@app.get("/api/state/{room_id}/{user_id}")
+async def get_state(room_id: str, user_id: str):
+    if room_id not in game_rooms:
+        game_rooms[room_id] = {
+            "board": [""] * 9,
+            "player1": user_id,
+            "player2": None,
+            "status": "wait",
+            "winner": "",
+            "turn": "X"
+        }
     
-    if len(rooms[room_id]) >= 2:
-        await websocket.close(code=4000, reason="Комната заполнена")
-        return
+    room = game_rooms[room_id]
+    
+    if room["player1"] != user_id and room["player2"] is None:
+        room["player2"] = user_id
+        room["status"] = "active"
+    
+    my_symbol = "X" if room["player1"] == user_id else "O"
+    
+    return {
+        "board": room["board"],
+        "status": room["status"],
+        "symbol": my_symbol,
+        "turn": room["turn"],
+        "winner": room["winner"]
+    }
+
+@app.post("/api/move/{room_id}")
+async def make_move(room_id: str, data: dict = Body(...)):
+    if room_id not in game_rooms:
+        raise HTTPException(status_code=404, detail="Room not found")
         
-    rooms[room_id].append(websocket)
+    room = game_rooms[room_id]
+    index = data.get("index")
+    symbol = data.get("symbol")
+    user_id = data.get("user_id")
     
-    # Распределяем символы: первый игрок — X, второй — O
-    player_symbol = "X" if len(rooms[room_id]) == 1 else "O"
-    await websocket.send_json({"type": "init", "symbol": player_symbol})
+    if room["board"][index] != "" or room["turn"] != symbol or room["status"] != "active":
+        return {"success": False}
+        
+    room["board"][index] = symbol
+    room["turn"] = "O" if symbol == "X" else "X"
     
-    # Если зашли оба игрока — запускаем матч
-    if len(rooms[room_id]) == 2:
-        for ws in rooms[room_id]:
-            await ws.send_json({"type": "start"})
+    # Проверка победы во фронтенде дублируется здесь для БД
+    if data.get("game_over") and data.get("winner_id"):
+        room["status"] = "over"
+        room["winner"] = symbol
+        cursor.execute("UPDATE users SET wins = wins + 1 WHERE user_id = ?", (int(data["winner_id"]),))
+        conn.commit()
+    elif "" not in room["board"] and not data.get("game_over"):
+        room["status"] = "over"
+        room["winner"] = "Ничья"
+        
+    return {"success": True}
 
-    try:
-        while True:
-            data = await websocket.receive_text()
-            event = json.loads(data)
-            
-            # Транслируем действия игроков друг другу
-            if event["type"] in ["move", "game_over"]:
-                for ws in rooms[room_id]:
-                    if ws != websocket:
-                        await ws.send_text(data)
-                        
-            # Запись очка за победу в базу данных SQLite
-            if event["type"] == "game_over" and event.get("winner_id"):
-                try:
-                    cursor.execute("UPDATE users SET wins = wins + 1 WHERE user_id = ?", (int(event["winner_id"]),))
-                    conn.commit()
-                except Exception as db_err:
-                    logging.error(f"Ошибка сохранения рекорда в БД: {db_err}")
-                
-    except WebSocketDisconnect:
-        if websocket in rooms[room_id]:
-            rooms[room_id].remove(websocket)
-        if not rooms[room_id]:
-            del rooms[room_id]
-
-# --- ЗАПУСК БОТА И СЕРВЕРА В ОДНОМ ЦИКЛЕ СОБЫТИЙ ---
 async def main():
     bot_task = asyncio.create_task(dp.start_polling(bot))
     config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
