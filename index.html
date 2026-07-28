@@ -25,7 +25,6 @@
         <div class="cell" onclick="handleCellClick(2)"></div>
         <div class="cell" onclick="handleCellClick(3)"></div>
         <div class="cell" onclick="handleCellClick(4)"></div>
-        <div class="cell" onclick="makeMove(5)"></div>
         <div class="cell" onclick="handleCellClick(5)"></div>
         <div class="cell" onclick="handleCellClick(6)"></div>
         <div class="cell" onclick="handleCellClick(7)"></div>
@@ -107,7 +106,6 @@
         }
 
         function checkWin(b, s) {
-            // ИСПРАВЛЕНО: Матрица выигрышей теперь заполнена полностью цифрами!
             const winPatterns = [, [3, 4, 5], [6, 7, 8], // Горизонтали, [1, 4, 7], [2, 5, 8], // Вертикали, [2, 4, 6]             // Диагонали
             ];
             return winPatterns.some(p => p.every(i => b[i] === s));
