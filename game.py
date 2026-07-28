@@ -84,6 +84,13 @@ async def cmd_top(message: types.Message):
     await message.answer(text, parse_mode="Markdown")
 
 # --- ЛОГИКА ВЕБ-СЕРВЕРА И WEBSOCKETS ---
+@app.get("/")
+@app.get("/game")
+async def get_game():
+    with open("index.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+# --- ЛОГИКА ВЕБ-СЕРВЕРА И WEBSOCKETS ---
 @app.get("/game")
 async def get_game():
     # Отдает файл index.html, который лежит в той же папке
