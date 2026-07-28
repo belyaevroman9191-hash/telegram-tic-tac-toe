@@ -209,11 +209,16 @@ async def handle_rematch(room_id: str, data: dict = Body(...)):
 
 async def main():
     bot_task = asyncio.create_task(dp.start_polling(bot))
-    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+    
+    # ИСПРАВЛЕНО: Жестко задаем workers=1 и отключаем цикличный loop-conflict
+    config = uvicorn.Config(
+        app, 
+        host="0.0.0.0", 
+        port=8000, 
+        log_level="info",
+        workers=1,
+        loop="asyncio"
+    )
     server = uvicorn.Server(config)
     await server.serve()
     bot_task.cancel()
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    asyncio.run(main())
