@@ -33,8 +33,10 @@
     </div>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
+        // ИСПРАВЛЕНИЕ: Защита от запуска в обычном браузере
+        const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+        if (tg) tg.expand();
+
 
         const urlParams = new URLSearchParams(window.location.search);
         
