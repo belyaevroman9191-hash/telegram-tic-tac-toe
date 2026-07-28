@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Крестики-Нолики</title>
-    <!-- ИСПРАВЛЕНО: Подключение правильного скрипта Telegram WebApp API -->
     <script src="https://telegram.org"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1c1c1e; color: #ffffff; margin: 0; padding: 20px; }
@@ -37,11 +36,18 @@
         tg.expand();
 
         const urlParams = new URLSearchParams(window.location.search);
-        const roomId = urlParams.get('room');
-        const userId = urlParams.get('user');
+        
+        // ЗАЩИТА: Если параметров нет в ссылке, создаем случайные ID
+        let roomId = urlParams.get('room');
+        let userId = urlParams.get('user');
+        
+        if (!roomId) roomId = "local_" + Math.floor(Math.random() * 100000);
+        if (!userId) userId = "user_" + Math.floor(Math.random() * 100000);
 
         const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const host = window.location.host;
+        
+        // Подключаемся к WebSocket
         const socket = new WebSocket(`${wsProtocol}//${host}/ws/${roomId}`);
 
         let board = ["", "", "", "", "", "", "", "", ""];
@@ -49,9 +55,12 @@
         let isMyTurn = false;
         let gameActive = false;
 
-        // ИСПРАВЛЕНО: Логирование успешного открытия WebSocket для отладки
         socket.onopen = function(e) {
-            console.log("Соединение с WebSocket сервером успешно установлено!");
+            document.getElementById('status').innerText = "Подключение установлено. Ожидание...";
+        };
+
+        socket.onerror = function(error) {
+            document.getElementById('status').innerText = "Ошибка сети. Перезагрузите страницу.";
         };
 
         socket.onmessage = function(event) {
@@ -107,8 +116,9 @@
         }
 
         function checkWin() {
-            // ИСПРАВЛЕНО: Полная и корректная матрица выигрышных комбинаций 3х3
-            const winPatterns = [, [3, 4, 5], [6, 7, 8], // Горизонтали, [1, 4, 7], [2, 5, 8], // Вертикали, [2, 4, 6]             // Диагонали
+            const winPatterns = [, [3, 4, 5], [6, 7, 8],
+, [1, 4, 7], [2, 5, 8],
+, [2, 4, 6]
             ];
             return winPatterns.some(pattern => {
                 return pattern.every(i => board[i] === mySymbol);
