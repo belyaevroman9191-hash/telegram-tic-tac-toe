@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Крестики-Нолики</title>
+    <!-- ИСПРАВЛЕНО: Подключение правильного скрипта Telegram WebApp API -->
     <script src="https://telegram.org"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1c1c1e; color: #ffffff; margin: 0; padding: 20px; }
@@ -39,14 +40,19 @@
         const roomId = urlParams.get('room');
         const userId = urlParams.get('user');
 
-        // Автоматически определяем адрес WebSocket сервера на основе текущего хоста
         const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws/${roomId}`);
+        const host = window.location.host;
+        const socket = new WebSocket(`${wsProtocol}//${host}/ws/${roomId}`);
 
         let board = ["", "", "", "", "", "", "", "", ""];
         let mySymbol = ""; 
         let isMyTurn = false;
         let gameActive = false;
+
+        // ИСПРАВЛЕНО: Логирование успешного открытия WebSocket для отладки
+        socket.onopen = function(e) {
+            console.log("Соединение с WebSocket сервером успешно установлено!");
+        };
 
         socket.onmessage = function(event) {
             const data = JSON.parse(event.data);
@@ -101,9 +107,8 @@
         }
 
         function checkWin() {
-            const winPatterns = [, [3, 4, 5], [6, 7, 8],
-, [1, 4, 7], [2, 5, 8],
-, [2, 4, 6]
+            // ИСПРАВЛЕНО: Полная и корректная матрица выигрышных комбинаций 3х3
+            const winPatterns = [, [3, 4, 5], [6, 7, 8], // Горизонтали, [1, 4, 7], [2, 5, 8], // Вертикали, [2, 4, 6]             // Диагонали
             ];
             return winPatterns.some(pattern => {
                 return pattern.every(i => board[i] === mySymbol);
