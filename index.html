@@ -3,41 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Крестики-Нолики</title>
+    <title>Крестики-Нолики PRO</title>
     <script src="https://telegram.org"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #1c1c1e; color: #ffffff; margin: 0; padding: 20px; }
-        .board { display: grid; grid-template-columns: repeat(3, 90px); grid-gap: 10px; justify-content: center; margin: 20px auto; }
-        .cell { width: 90px; height: 90px; background: #2c2c2e; font-size: 2.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 12px; font-weight: bold; transition: all 0.3s ease; }
-        .cell.x { color: #ff3b30; }
-        .cell.o { color: #007aff; }
-        #status { font-size: 1.2rem; margin-bottom: 5px; color: #eaeaea; }
-        #stats { font-size: 1rem; margin-bottom: 15px; color: #aaaaaa; background: #2c2c2e; display: inline-block; padding: 6px 15px; border-radius: 20px; }
+        body { font-family: sans-serif; text-align: center; background: #1c1c1e; color: #ffffff; margin: 0; padding: 15px; user-select: none; }
+        .board { display: grid; grid-template-columns: repeat(3, 90px); grid-gap: 10px; justify-content: center; margin: 15px auto; }
+        .cell { width: 90px; height: 90px; background: #2c2c2e; font-size: 2.3rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 14px; font-weight: bold; transition: all 0.2s ease; }
+        .cell:active { transform: scale(0.92); background: #3a3a3c; }
+        #status { font-size: 1.1rem; margin-bottom: 5px; color: #eaeaea; font-weight: bold; }
         
+        .profile-container { background: #2c2c2e; padding: 10px; border-radius: 16px; display: inline-block; width: 90%; max-width: 340px; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .stat-row { display: flex; justify-content: space-around; font-size: 0.9rem; color: #aaaaaa; margin-bottom: 5px; }
+        .stat-val { color: #ffffff; font-weight: bold; font-size: 1.1rem; }
+        .winrate-bar-bg { background: #48484a; height: 6px; border-radius: 3px; width: 90%; margin: 5px auto 0 auto; overflow: hidden; }
+        .winrate-bar-fill { background: #34c759; height: 100%; width: 0%; transition: width 0.5s ease; }
+
+        .shop-title { font-size: 1.2rem; font-weight: bold; margin: 20px 0 10px 0; color: #ffd60a; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .shop-container { display: flex; flex-direction: column; gap: 8px; width: 90%; max-width: 340px; margin: 0 auto 20px auto; max-height: 180px; overflow-y: auto; padding-right: 5px; }
+        .shop-item { background: #2c2c2e; border-radius: 12px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #3a3a3c; transition: border 0.2s; }
+        .shop-item.equipped { border-color: #007aff; background: #1c2e4a; }
+        .skin-info { text-align: left; }
+        .skin-name { font-weight: bold; font-size: 0.95rem; }
+        .skin-icons { font-size: 1.2rem; margin-top: 2px; }
+        .shop-btn { padding: 6px 12px; font-size: 0.85rem; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; color: #fff; background: #007aff; }
+        .shop-btn.equip-btn { background: #30b0c7; }
+        .shop-btn.owned-btn { background: #48484a; color: #aeaeae; cursor: default; }
+
         .btn { background: #007aff; color: #fff; border: none; padding: 12px 24px; font-size: 1rem; font-weight: bold; border-radius: 10px; cursor: pointer; display: none; margin: 15px auto; transition: background 0.2s; }
-        .btn:hover { background: #0056b3; }
-        .btn:disabled { background: #444; color: #888; cursor: not-allowed; }
-        
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 100; }
         .modal-content { background: #2c2c2e; padding: 25px; border-radius: 16px; width: 85%; max-width: 320px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
         .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
-        .btn-accept { background: #34c759; }
-        .btn-accept:hover { background: #28a745; }
-        .btn-decline { background: #ff3b30; }
-        .btn-decline:hover { background: #dc3545; }
-
-        .cell.win-line {
-            background: #34c759 !important;
-            color: #ffffff !important;
-            transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(52, 199, 89, 0.6);
-        }
+        .btn-accept { background: #34c759; color: #fff; }
+        .btn-decline { background: #ff3b30; color: #fff; }
+        .cell.win-line { background: #34c759 !important; color: #ffffff !important; transform: scale(1.03); box-shadow: 0 0 12px rgba(52, 199, 89, 0.5); }
     </style>
 </head>
 <body>
 
-    <h2 style="margin-top: 10px;">Крестики-Нолики ❌⭕</h2>
-    <div id="stats">🏆 Побед: 0 | 👎 Проигрышей: 0</div>
+    <div class="profile-container">
+        <div class="stat-row">
+            <div>🏆 Побед: <span id="p-wins" class="stat-val">0</span></div>
+            <div>👎 Проигрышей: <span id="p-losses" class="stat-val">0</span></div>
+            <div>📈 Winrate: <span id="p-rate" class="stat-val">0%</span></div>
+        </div>
+        <div class="winrate-bar-bg"><div id="rate-fill" class="winrate-bar-fill"></div></div>
+    </div>
+
     <div id="status">Инициализация игровой сессии...</div>
     
     <div class="board" id="board">
@@ -53,6 +64,9 @@
     </div>
 
     <button id="rematch-btn" class="btn" onclick="sendRematchRequest()">Сыграть еще раз</button>
+
+    <div class="shop-title">🎨 Магазин кастомных скинов</div>
+    <div class="shop-container" id="shop-box"></div>
 
     <div id="rematch-modal" class="modal">
         <div class="modal-content">
@@ -78,22 +92,129 @@
         let boardState = ["", "", "", "", "", "", "", "", ""];
         let isMyTurn = false;
         let isGameActive = false;
+        let lastStatus = "";
 
+        const clientSkins = {
+            "classic": {name: "Классика", cost: 0, x: "❌", o: "⭕"},
+            "ninja": {name: "Дуэль Ниндзя", cost: 3, x: "⚔️", o: "🛡️"},
+            "elements": {name: "Магия стихий", cost: 5, x: "🔥", o: "💧"},
+            "halloween": {name: "Хэллоуин", cost: 10, x: "👻", o: "🎃"},
+            "space": {name: "Космос", cost: 15, x: "🚀", o: "👽"}
+        };
+
+        // ТВОЙ ПОЛНОСТЬЮ ИСПРАВЛЕННЫЙ ВАРИАНТ ФУНКЦИЙ
         function checkWin(b, s) {
-                const winPatterns = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+            const winPatterns = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
             return winPatterns.some(p => p.every(i => b[i] === s));
         }
 
         function highlightWin(b, s) {
-                const winPatterns = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+            const winPatterns = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
             const cells = document.querySelectorAll('.cell');
             winPatterns.forEach(p => {
-                if (p.every(i => b[i] === s)) {
-                    p.forEach(i => cells[i].classList.add('win-line'));
-                }
+                if (p.every(i => b[i] === s)) { p.forEach(i => cells[i].classList.add('win-line')); }
             });
         }
 
+        // Генератор звуковых эффектов (SFX)
+        function playSound(type) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (type === 'click') {
+                    osc.frequency.setValueAtTime(580, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+                    osc.start(); osc.stop(ctx.currentTime + 0.08);
+                } else if (type === 'win') {
+                    osc.frequency.setValueAtTime(440, ctx.currentTime);
+                    osc.frequency.setValueAtTime(554, ctx.currentTime + 0.1);
+                    osc.frequency.setValueAtTime(659, ctx.currentTime + 0.2);
+                    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+                    osc.start(); osc.stop(ctx.currentTime + 0.5);
+                } else if (type === 'lose') {
+                    osc.frequency.setValueAtTime(300, ctx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(120, ctx.currentTime + 0.4);
+                    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                    osc.start(); osc.stop(ctx.currentTime + 0.4);
+                } else if (type === 'error') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+                    osc.start(); osc.stop(ctx.currentTime + 0.15);
+                }
+            } catch(e){}
+        }
+
+        // Тактильная вибрация через Telegram API
+        function triggerVibration(style) {
+            if (tg && tg.HapticFeedback) {
+                if (style === 'light') tg.HapticFeedback.impactOccurred('light');
+                else if (style === 'success') tg.HapticFeedback.notificationOccurred('success');
+                else if (style === 'error') tg.HapticFeedback.notificationOccurred('warning');
+            }
+        }
+        // Отрисовка магазина скинов
+        function renderShop(currentSkin, unlockedSkins, currentWins) {
+            const shopBox = document.getElementById('shop-box');
+            shopBox.innerHTML = "";
+            const unlockedList = unlockedSkins.split(",");
+
+            for (let skinId in clientSkins) {
+                const skin = clientSkins[skinId];
+                const isUnlocked = unlockedList.includes(skinId);
+                const isEquipped = currentSkin === skinId;
+
+                const item = document.createElement('div');
+                item.className = `shop-item ${isEquipped ? 'equipped' : ''}`;
+
+                let btnHtml = "";
+                if (isEquipped) {
+                    btnHtml = `<button class="shop-btn owned-btn">Активен</button>`;
+                } else if (isUnlocked) {
+                    btnHtml = `<button class="shop-btn equip-btn" onclick="shopAction('equip', '${skinId}')">Надеть</button>`;
+                } else {
+                    btnHtml = `<button class="shop-btn" onclick="shopAction('buy', '${skinId}')">💰 Купить (${skin.cost})</button>`;
+                }
+
+                item.innerHTML = `
+                    <div class="skin-info">
+                        <div class="skin-name">${skin.name}</div>
+                        <div class="skin-icons">${skin.x} против ${skin.o}</div>
+                    </div>
+                    ${btnHtml}
+                `;
+                shopBox.appendChild(item);
+            }
+        }
+
+        async function shopAction(action, skinId) {
+            try {
+                const res = await fetch(`/api/shop/${userId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action, skin_id: skinId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    playSound('win');
+                    triggerVibration('success');
+                    defUpdate();
+                } else {
+                    playSound('error');
+                    triggerVibration('error');
+                    alert(data.message);
+                }
+            } catch(e){}
+        }
 
         async function defUpdate() {
             try {
@@ -103,7 +224,17 @@
                 mySymbol = data.symbol;
                 boardState = data.board;
                 
-                document.getElementById('stats').innerText = `🏆 Побед: ${data.user_wins || 0} | 👎 Проигрышей: ${data.user_losses || 0}`;
+                const wins = data.user_wins || 0;
+                const losses = data.user_losses || 0;
+                const total = wins + losses;
+                const rate = total > 0 ? Math.round((wins / total) * 100) : 0;
+                
+                document.getElementById('p-wins').innerText = wins;
+                document.getElementById('p-losses').innerText = losses;
+                document.getElementById('p-rate').innerText = rate + "%";
+                document.getElementById('rate-fill').style.width = rate + "%";
+
+                renderShop(data.current_skin, data.unlocked_skins, wins);
                 
                 const cells = document.querySelectorAll('.cell');
                 boardState.forEach((val, idx) => {
@@ -112,7 +243,7 @@
                         cells[idx].classList.remove('win-line');
                     }
                     if (!cells[idx].classList.contains('win-line')) {
-                        cells[idx].className = "cell" + (val ? " " + val.toLowerCase() : "");
+                        cells[idx].className = "cell"; 
                     }
                 });
 
@@ -130,7 +261,7 @@
                 }
 
                 if (data.status === "wait") {
-                    document.getElementById('status').innerText = `Вы играете за: ${mySymbol}. Ожидаем соперника...`;
+                    document.getElementById('status').innerText = `Вы играете за: ${data.visual_symbol}. Ожидаем соперника...`;
                     isGameActive = false;
                     rematchBtn.style.display = "none";
                     rematchModal.style.display = "none";
@@ -142,14 +273,19 @@
                     document.getElementById('status').innerText = isMyTurn ? "Ваш ход!" : "Ход противника...";
                     rematchBtn.style.display = "none";
                     rematchModal.style.display = "none";
-                    rematchBtn.disabled = false;
-                    rematchBtn.innerText = "Сыграть еще раз";
                 } else if (data.status === "over") {
                     isGameActive = false;
-                    document.getElementById('status').innerText = data.winner === "Ничья" ? "Ничья! 🤝" : (data.winner === mySymbol ? "Вы победили! 🎉" : `Победил игрок ${data.winner}! 😔`);
+                    
+                    document.getElementById('status').innerText = data.winner === "Ничья" ? "Ничья! 🤝" : (data.winner === data.visual_symbol ? "Вы победили! 🎉" : `Победил соперник! 😔`);
                     
                     if (data.winner !== "Ничья") {
                         highlightWin(boardState, data.winner);
+                    }
+
+                    if (lastStatus !== "over") {
+                        if (data.winner === "Ничья") playSound('click');
+                        else if (data.winner === data.visual_symbol) { playSound('win'); triggerVibration('success'); }
+                        else { playSound('lose'); triggerVibration('error'); }
                     }
 
                     const reqs = data.rematch_requests || [];
@@ -160,42 +296,43 @@
                         rematchModal.style.display = "none";
                     } else if (reqs.length > 0) {
                         if (reqs.includes(userId)) {
-                            // Если вы отправили запрос первым
                             rematchBtn.style.display = "block";
                             rematchBtn.disabled = true;
                             rematchBtn.innerText = "Ожидание ответа...";
                             rematchModal.style.display = "none";
                         } else {
-                            // Если соперник отправил запрос вам
                             rematchBtn.style.display = "none";
                             rematchModal.style.display = "flex";
                         }
                     } else {
-                        // ИСПРАВЛЕНО: Кнопка гарантированно показывается и больше не прячется каждую секунду
+                        // ТВОЙ ИСПРАВЛЕННЫЙ СТАБИЛЬНЫЙ ВАРИАНТ КНОПКИ РЕВАНША
                         rematchBtn.style.display = "block";
                         rematchBtn.disabled = false;
                         rematchBtn.innerText = "Сыграть еще раз";
                         rematchModal.style.display = "none";
                     }
                 }
+                lastStatus = data.status;
             } catch (err) {
                 document.getElementById('status').innerText = "Ошибка синхронизации.";
             }
         }
 
         async function handleCellClick(index) {
-            if (!isGameActive || !isMyTurn || boardState[index] !== "") return;
+            if (!isGameActive || !isMyTurn || boardState[index] !== "") {
+                if (boardState[index] !== "") { playSound('error'); triggerVibration('error'); }
+                return;
+            }
 
-            boardState[index] = mySymbol;
+            playSound('click');
+            triggerVibration('light');
+
+            boardState[index] = mySymbol; 
             isMyTurn = false;
             document.getElementById('status').innerText = "Отправка хода...";
 
-            let gameOver = checkWin(boardState, mySymbol);
-            let tie = !boardState.includes("") && !gameOver;
-
-            if (gameOver) {
-                highlightWin(boardState, mySymbol);
-            }
+            let isWinDetected = checkWin(boardState, mySymbol);
+            let isTieDetected = !boardState.includes("") && !isWinDetected;
 
             try {
                 await fetch(`/api/move/${roomId}`, {
@@ -205,8 +342,8 @@
                         index: index,
                         symbol: mySymbol,
                         user_id: userId,
-                        game_over: gameOver || tie,
-                        winner_id: gameOver ? userId : null
+                        game_over: isWinDetected || isTieDetected,
+                        winner_id: isWinDetected ? userId : null
                     })
                 });
                 defUpdate();
@@ -216,36 +353,16 @@
         }
 
         async function sendRematchRequest() {
-            try {
-                await fetch(`/api/rematch/${roomId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'request', user_id: userId })
-                });
-                defUpdate();
-            } catch (e) {}
+            playSound('click');
+            try { await fetch(`/api/rematch/${roomId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'request', user_id: userId }) }); defUpdate(); } catch (e) {}
         }
-
         async function acceptRematch() {
-            try {
-                await fetch(`/api/rematch/${roomId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'accept', user_id: userId })
-                });
-                defUpdate();
-            } catch (e) {}
+            playSound('win');
+            try { await fetch(`/api/rematch/${roomId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'accept', user_id: userId }) }); defUpdate(); } catch (e) {}
         }
-
         async function declineRematch() {
-            try {
-                await fetch(`/api/rematch/${roomId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'decline', user_id: userId })
-                });
-                defUpdate();
-            } catch (e) {}
+            playSound('lose');
+            try { await fetch(`/api/rematch/${roomId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'decline', user_id: userId }) }); defUpdate(); } catch (e) {}
         }
 
         setInterval(defUpdate, 1000);
