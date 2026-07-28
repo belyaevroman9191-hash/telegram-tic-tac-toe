@@ -32,12 +32,13 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
     username TEXT,
-    wins INTEGER DEFAULT 0
+    wins INTEGER DEFAULT 0,
+    losses INTEGER DEFAULT 0
 )
 """)
 conn.commit()
 
-# Хранилище комнат в памяти: {room_id: {"board": [...], "player1": ID, "player2": ID, "status": "wait"/"active"/"over", "winner": ""}}
+# Хранилище комнат в памяти
 game_rooms = {}
 
 @dp.message(Command("start"))
@@ -73,7 +74,7 @@ async def cmd_start(message: types.Message):
 
 @dp.message(Command("top"))
 async def cmd_top(message: types.Message):
-    cursor.execute("SELECT username, wins FROM users ORDER BY wins DESC LIMIT 10")
+    cursor.execute("SELECT username, wins, losses FROM users ORDER BY wins DESC, losses ASC LIMIT 10")
     leaders = cursor.fetchall()
     
     if not leaders:
@@ -81,8 +82,8 @@ async def cmd_top(message: types.Message):
         return
         
     text = "🏆 **ТОП-10 ИГРОКОВ:**\n\n"
-    for i, (username, wins) in enumerate(leaders, 1):
-        text += f"{i}. @{username} — {wins} 🥇\n"
+    for i, (username, wins, losses) in enumerate(leaders, 1):
+        text += f"{i}. @{username} — {wins} 🥇 / {losses} 👎\n"
     await message.answer(text, parse_mode="Markdown")
 
 @app.get("/")
@@ -103,7 +104,9 @@ async def get_state(room_id: str, user_id: str):
             "player2": None,
             "status": "wait",
             "winner": "",
-            "turn": "X"
+            "turn": "X",
+            "rematch_requests": [],  # ДОРАБОТАНО: список ID игроков, запросивших реванш
+            "rematch_declined": False # ДОРАБОТАНО: флаг отказа от реванша
         }
     
     room = game_rooms[room_id]
@@ -114,12 +117,20 @@ async def get_state(room_id: str, user_id: str):
     
     my_symbol = "X" if room["player1"] == user_id else "O"
     
+    cursor.execute("SELECT wins, losses FROM users WHERE user_id = ?", (int(user_id) if user_id.isdigit() else 0,))
+    user_stats = cursor.fetchone()
+    wins, losses = user_stats if user_stats else (0, 0)
+    
     return {
         "board": room["board"],
         "status": room["status"],
         "symbol": my_symbol,
         "turn": room["turn"],
-        "winner": room["winner"]
+        "winner": room["winner"],
+        "user_wins": wins,
+        "user_losses": losses,
+        "rematch_requests": room.get("rematch_requests", []),
+        "rematch_declined": room.get("rematch_declined", False)
     }
 
 @app.post("/api/move/{room_id}")
@@ -137,16 +148,55 @@ async def make_move(room_id: str, data: dict = Body(...)):
     room["board"][index] = symbol
     room["turn"] = "O" if symbol == "X" else "X"
     
-    # СЕРВЕРНАЯ ПРОВЕРКА ОКОНЧАНИЯ ИГРЫ
     if data.get("game_over") and data.get("winner_id"):
         room["status"] = "over"
         room["winner"] = symbol
-        cursor.execute("UPDATE users SET wins = wins + 1 WHERE user_id = ?", (int(data["winner_id"]),))
+        
+        winner_id = int(data["winner_id"])
+        loser_id = int(room["player2"]) if str(winner_id) == str(room["player1"]) else int(room["player1"])
+        
+        cursor.execute("UPDATE users SET wins = wins + 1 WHERE user_id = ?", (winner_id,))
+        cursor.execute("UPDATE users SET losses = losses + 1 WHERE user_id = ?", (loser_id,))
         conn.commit()
-    # Жестко проверяем: если пустых клеток нет — это гарантированная ничья
+        
     elif "" not in room["board"]:
         room["status"] = "over"
         room["winner"] = "Ничья"
+        
+    return {"success": True}
+
+# ДОРАБОТАНО: Эндпоинт для обработки реваншей
+@app.post("/api/rematch/{room_id}")
+async def handle_rematch(room_id: str, data: dict = Body(...)):
+    if room_id not in game_rooms:
+        raise HTTPException(status_code=404, detail="Room not found")
+        
+    room = game_rooms[room_id]
+    action = data.get("action")  # 'request', 'accept', 'decline'
+    user_id = data.get("user_id")
+    
+    if action == "request":
+        if user_id not in room["rematch_requests"]:
+            room["rematch_requests"].append(user_id)
+            room["rematch_declined"] = False
+            
+    elif action == "accept":
+        # Сброс игрового поля и запуск нового раунда
+        room["board"] = [""] * 9
+        room["status"] = "active"
+        room["winner"] = ""
+        room["rematch_requests"] = []
+        room["rematch_declined"] = False
+        
+        # Меняем игроков ролями, чтобы тот, кто ходил вторым, теперь ходил первым
+        p1, p2 = room["player1"], room["player2"]
+        room["player1"] = p2
+        room["player2"] = p1
+        room["turn"] = "X"
+        
+    elif action == "decline":
+        room["rematch_declined"] = True
+        room["rematch_requests"] = []
         
     return {"success": True}
 
