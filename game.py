@@ -57,9 +57,17 @@ SKINS_CONFIG = {
 
 game_rooms = {}
 
-# ИСПРАВЛЕНО: Массив полностью заполнен построчно цифрами (без урезаний)
+# ИСПРАВЛЕНО: Полный список комбинаций записан столбиком без скрытых символов
 def check_server_win(b, s):
-    win_patterns = [, [3, 4, 5], [6, 7, 8], # Горизонтали, [1, 4, 7], [2, 5, 8], # Вертикали, [2, 4, 6]             # Диагонали
+    win_patterns = [,
+        [0, 1, 2],
+        [3, 4, 5],
+        [6, 7, 8],
+        [0, 3, 6],
+        [1, 4, 7],
+        [2, 5, 8],
+        [0, 4, 8],
+        [2, 4, 6],
     ]
     for p in win_patterns:
         if b[p[0]] == s and b[p[1]] == s and b[p[2]] == s:
@@ -219,7 +227,6 @@ async def make_move(room_id: str, data: dict = Body(...)):
     room["board"][index] = symbol
     room["turn"] = "O" if symbol == "X" else "X"
     
-    # Сервер математически вычисляет победную комбинацию
     winning_pattern = check_server_win(room["board"], symbol)
     
     if winning_pattern:
