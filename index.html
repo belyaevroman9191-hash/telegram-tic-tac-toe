@@ -13,21 +13,33 @@
         .cell.o { color: #007aff; }
         #status { font-size: 1.2rem; margin-bottom: 5px; color: #eaeaea; }
         #stats { font-size: 1rem; margin-bottom: 15px; color: #aaaaaa; background: #2c2c2e; display: inline-block; padding: 6px 15px; border-radius: 20px; }
+        
         .btn { background: #007aff; color: #fff; border: none; padding: 12px 24px; font-size: 1rem; font-weight: bold; border-radius: 10px; cursor: pointer; display: none; margin: 15px auto; transition: background 0.2s; }
         .btn:hover { background: #0056b3; }
         .btn:disabled { background: #444; color: #888; cursor: not-allowed; }
+        
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 100; }
         .modal-content { background: #2c2c2e; padding: 25px; border-radius: 16px; width: 85%; max-width: 320px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
         .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
         .btn-accept { background: #34c759; }
+        .btn-accept:hover { background: #28a745; }
         .btn-decline { background: #ff3b30; }
-        .cell.win-line { background: #34c759 !important; color: #ffffff !important; transform: scale(1.05); box-shadow: 0 0 15px rgba(52, 199, 89, 0.6); }
+        .btn-decline:hover { background: #dc3545; }
+
+        .cell.win-line {
+            background: #34c759 !important;
+            color: #ffffff !important;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(52, 199, 89, 0.6);
+        }
     </style>
 </head>
 <body>
+
     <h2 style="margin-top: 10px;">Крестики-Нолики ❌⭕</h2>
     <div id="stats">🏆 Побед: 0 | 👎 Проигрышей: 0</div>
     <div id="status">Инициализация игровой сессии...</div>
+    
     <div class="board" id="board">
         <div class="cell" onclick="handleCellClick(0)"></div>
         <div class="cell" onclick="handleCellClick(1)"></div>
@@ -39,8 +51,9 @@
         <div class="cell" onclick="handleCellClick(7)"></div>
         <div class="cell" onclick="handleCellClick(8)"></div>
     </div>
+
     <button id="rematch-btn" class="btn" onclick="sendRematchRequest()">Сыграть еще раз</button>
-    <button id="close-btn" class="btn" style="background: #ff3b30;" onclick="if(tg)tg.close();">Выйти в меню</button>
+
     <div id="rematch-modal" class="modal">
         <div class="modal-content">
             <div style="font-size: 1.1rem; font-weight: bold;">Противник хочет с Вами сыграть еще раз!🔄</div>
@@ -66,48 +79,60 @@
         let isMyTurn = false;
         let isGameActive = false;
 
-        const winPatterns = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+        function checkWin(b, s) {
+                const winPatterns = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+            return winPatterns.some(p => p.every(i => b[i] === s));
+        }
 
-        function checkWin(b, s) { return winPatterns.some(p => p.every(i => b[i] === s)); }
         function highlightWin(b, s) {
+                const winPatterns = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
             const cells = document.querySelectorAll('.cell');
             winPatterns.forEach(p => {
-                if (p.every(i => b[i] === s)) { p.forEach(i => cells[i].classList.add('win-line')); }
+                if (p.every(i => b[i] === s)) {
+                    p.forEach(i => cells[i].classList.add('win-line'));
+                }
             });
         }
+
 
         async function defUpdate() {
             try {
                 const response = await fetch(`/api/state/${roomId}/${userId}`);
                 const data = await response.json();
+                
                 mySymbol = data.symbol;
                 boardState = data.board;
+                
                 document.getElementById('stats').innerText = `🏆 Побед: ${data.user_wins || 0} | 👎 Проигрышей: ${data.user_losses || 0}`;
+                
                 const cells = document.querySelectorAll('.cell');
                 boardState.forEach((val, idx) => {
                     cells[idx].innerText = val;
-                    if (data.status !== "over" && cells[idx].classList.contains('win-line')) { cells[idx].classList.remove('win-line'); }
-                    if (!cells[idx].classList.contains('win-line')) { cells[idx].className = "cell" + (val ? " " + val.toLowerCase() : ""); }
+                    if (data.status !== "over" && cells[idx].classList.contains('win-line')) {
+                        cells[idx].classList.remove('win-line');
+                    }
+                    if (!cells[idx].classList.contains('win-line')) {
+                        cells[idx].className = "cell" + (val ? " " + val.toLowerCase() : "");
+                    }
                 });
+
                 const rematchBtn = document.getElementById('rematch-btn');
-                const closeBtn = document.getElementById('close-btn');
                 const rematchModal = document.getElementById('rematch-modal');
 
                 if (data.status === "left") {
                     isGameActive = false;
-                    document.getElementById('status').innerText = "⌛ Противник покинул игру.";
-                    document.getElementById('board').style.opacity = "0.3";
+                    document.getElementById('status').innerText = "Противник покинул игру. 😔";
+                    document.getElementById('board').style.opacity = "0.4";
                     document.getElementById('board').style.pointerEvents = "none";
                     rematchBtn.style.display = "none";
                     rematchModal.style.display = "none";
-                    closeBtn.style.display = "block";
                     return;
                 }
+
                 if (data.status === "wait") {
                     document.getElementById('status').innerText = `Вы играете за: ${mySymbol}. Ожидаем соперника...`;
                     isGameActive = false;
                     rematchBtn.style.display = "none";
-                    closeBtn.style.display = "none";
                     rematchModal.style.display = "none";
                 } else if (data.status === "active") {
                     document.getElementById('board').style.opacity = "1";
@@ -116,53 +141,110 @@
                     isMyTurn = (data.turn === mySymbol);
                     document.getElementById('status').innerText = isMyTurn ? "Ваш ход!" : "Ход противника...";
                     rematchBtn.style.display = "none";
-                    closeBtn.style.display = "none";
                     rematchModal.style.display = "none";
                     rematchBtn.disabled = false;
+                    rematchBtn.innerText = "Сыграть еще раз";
                 } else if (data.status === "over") {
                     isGameActive = false;
-                    document.getElementById('status').innerText = data.winner === "Ничья" ? "Ничья! 🤝" : (data.winner === mySymbol ? "Вы победили! 🎉" : `Побел игрок ${data.winner}! 😔`);
-                    if (data.winner !== "Ничья") { highlightWin(boardState, data.winner); }
+                    document.getElementById('status').innerText = data.winner === "Ничья" ? "Ничья! 🤝" : (data.winner === mySymbol ? "Вы победили! 🎉" : `Победил игрок ${data.winner}! 😔`);
+                    
+                    if (data.winner !== "Ничья") {
+                        highlightWin(boardState, data.winner);
+                    }
+
                     const reqs = data.rematch_requests || [];
                     if (data.rematch_declined) {
-                        rematchBtn.style.display = "block"; rematchBtn.disabled = true; rematchBtn.innerText = "Противник отклонил реванш ↩️"; rematchModal.style.display = "none";
+                        rematchBtn.style.display = "block";
+                        rematchBtn.disabled = true;
+                        rematchBtn.innerText = "Противник отклонил реванш ↩️";
+                        rematchModal.style.display = "none";
                     } else if (reqs.length > 0) {
-                        if (reqs.includes(userId)) { rematchBtn.style.display = "block"; rematchBtn.disabled = true; rematchBtn.innerText = "Ожидание ответа..."; rematchModal.style.display = "none"; }
-                        else { rematchBtn.style.display = "none"; rematchModal.style.display = "flex"; }
-                    } else { rematchBtn.style.display = "block"; rematchModal.style.display = "none"; }
+                        if (reqs.includes(userId)) {
+                            rematchBtn.style.display = "block";
+                            rematchBtn.disabled = true;
+                            rematchBtn.innerText = "Ожидание ответа...";
+                            rematchModal.style.display = "none";
+                        } else {
+                            rematchBtn.style.display = "none";
+                            rematchModal.style.display = "flex";
+                        }
+                    } else {
+                        rematchBtn.style.display = "block";
+                        rematchModal.style.display = "none";
+                    }
                 }
-            } catch (err) { document.getElementById('status').innerText = "Ошибка синхронизации."; }
+            } catch (err) {
+                document.getElementById('status').innerText = "Ошибка синхронизации.";
+            }
         }
 
         async function handleCellClick(index) {
             if (!isGameActive || !isMyTurn || boardState[index] !== "") return;
+
             boardState[index] = mySymbol;
             isMyTurn = false;
             document.getElementById('status').innerText = "Отправка хода...";
+
             let gameOver = checkWin(boardState, mySymbol);
             let tie = !boardState.includes("") && !gameOver;
-            if (gameOver) { highlightWin(boardState, mySymbol); }
+
+            if (gameOver) {
+                highlightWin(boardState, mySymbol);
+            }
+
             try {
                 await fetch(`/api/move/${roomId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ index: index, symbol: mySymbol, user_id: userId, game_over: gameOver || tie, winner_id: gameOver ? userId : null })
+                    body: JSON.stringify({
+                        index: index,
+                        symbol: mySymbol,
+                        user_id: userId,
+                        game_over: gameOver || tie,
+                        winner_id: gameOver ? userId : null
+                    })
                 });
                 defUpdate();
-            } catch (e) { document.getElementById('status').innerText = "Ошибка отправки хода."; }
+            } catch (e) {
+                document.getElementById('status').innerText = "Ошибка отправки хода.";
+            }
         }
 
         async function sendRematchRequest() {
-            try { await fetch(`/api/rematch/${roomId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'request', user_id: userId }) }); defUpdate(); } catch (e) {}
+            try {
+                await fetch(`/api/rematch/${roomId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'request', user_id: userId })
+                });
+                defUpdate();
+            } catch (e) {}
         }
+
         async function acceptRematch() {
-            try { await fetch(`/api/rematch/${roomId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'accept', user_id: userId }) }); defUpdate(); } catch (e) {}
+            try {
+                await fetch(`/api/rematch/${roomId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'accept', user_id: userId })
+                });
+                defUpdate();
+            } catch (e) {}
         }
+
         async function declineRematch() {
-            try { await fetch(`/api/rematch/${roomId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'decline', user_id: userId }) }); defUpdate(); } catch (e) {}
+            try {
+                await fetch(`/api/rematch/${roomId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'decline', user_id: userId })
+                });
+                defUpdate();
+            } catch (e) {}
         }
 
         setInterval(defUpdate, 1000);
         defUpdate();
     </script>
 </body>
+</html>
