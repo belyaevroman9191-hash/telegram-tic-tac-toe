@@ -16,7 +16,19 @@ SERVER_URL = "https://telegram-tic-tac-toe-8dv1.onrender.com"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
+
+# ИСПРАВЛЕНИЕ: Открываем сетевые порты сервера для стабильного подключения WebSockets
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Инициализация базы данных SQLite в правильной рабочей директории
 db_path = os.path.join(os.path.dirname(__file__), "tic_tac_toe.db")
