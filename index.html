@@ -44,15 +44,19 @@
         let isMyTurn = false;
         let gameActive = false;
 
-        const urlParams = new URLSearchParams(window.location.search);
+                // 1. СНАЧАЛА СЧИТЫВАЕМ ПАРАМЕТРЫ ИЗ ССЫЛКИ
+                const urlParams = new URLSearchParams(window.location.search);
+                let roomId = urlParams.get('room');
+                let userId = urlParams.get('user');
         
-        // ИСПРАВЛЕНИЕ: Если roomId равен null или строке "null", принудительно создаем случайную комнату
-        if (!roomId || roomId === "null" || roomId === null) {
-            roomId = "lobby_" + Math.floor(Math.random() * 100000);
-        }
-        if (!userId || userId === "null" || userId === null) {
-            userId = "player_" + Math.floor(Math.random() * 100000);
-        }
+                // 2. И ТОЛЬКО ПОТОМ ПРОВЕРЯЕМ ИХ НА КОРРЕКТНОСТЬ (ВАШ БЛОК IF)
+                if (!roomId || roomId === "null" || roomId === null) {
+                    roomId = "lobby_" + Math.floor(Math.random() * 100000);
+                }
+                if (!userId || userId === "null" || userId === null) {
+                    userId = "player_" + Math.floor(Math.random() * 100000);
+                }
+
         
         const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const host = window.location.host;
