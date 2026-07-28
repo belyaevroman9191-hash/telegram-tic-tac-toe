@@ -53,12 +53,11 @@
     </div>
 
     <button id="rematch-btn" class="btn" onclick="sendRematchRequest()">Сыграть еще раз</button>
+    <button id="close-btn" class="btn" style="background: #ff3b30;" onclick="if(tg)tg.close();">Выйти в меню</button>
 
     <div id="rematch-modal" class="modal">
         <div class="modal-content">
             <div style="font-size: 1.1rem; font-weight: bold;">Противник хочет с Вами сыграть еще раз!🔄</div>
-            <button id="close-btn" class="btn" style="background: #ff3b30;" onclick="if(tg)tg.close();">Выйти в меню</button>
-            
             <div class="modal-buttons">
                 <button class="btn btn-accept" style="display:block;" onclick="acceptRematch()">Принять</button>
                 <button class="btn btn-decline" style="display:block;" onclick="declineRematch()">Отклонить</button>
@@ -75,16 +74,8 @@
 
         if (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
             const startParam = tg.initDataUnsafe.start_param;
-            if (startParam.startsWith("room_")) {
-                roomId = startParam.replace("room_", "");
-            }
-        }
-        
-        if (!roomId || roomId === "null") {
-            const fullUrl = window.location.href;
-            const matchResult = fullUrl.match(/tgWebAppStartParam=room_(\d+)/);
-            if (matchResult && matchResult[1]) {
-                roomId = matchResult[1];
+            if (startParam.indexOf("room_") === 0) {
+                roomId = startParam.substring(5);
             }
         }
         
@@ -104,6 +95,7 @@
 , [0, 3, 6], [1, 4, 7], [2, 5, 8], 
 , [0, 4, 8] [2, 4, 6]
         ];
+
         function checkWin(b, s) {
             return winPatterns.some(p => p.every(i => b[i] === s));
         }
