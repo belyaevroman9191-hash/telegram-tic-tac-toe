@@ -59,7 +59,7 @@ async def cmd_start(message: types.Message):
     if len(args) > 1 and args[1].startswith("game_"):
         room_id = args[1].replace("game_", "")
         # Ссылка ведёт сразу в шторку Mini App для принятия дуэли
-        link = f"https://t.me{bot_username}/play?startapp=room_{room_id}"
+        link = f"https://t.me/{bot_username}/play?startapp=room_{room_id}"
         await message.answer(
             "⚔️ Вы приняли вызов! Нажмите кнопку ниже, чтобы войти в игру:",
             reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
@@ -104,7 +104,7 @@ async def cmd_top(message: types.Message):
 async def cmd_invite_link(message: types.Message):
     bot_info = await bot.get_me()
     # ИСПРАВЛЕНО: Инвайт-ссылка теперь генерируется в формате Mini App
-    invite_link = f"https://t.me{bot_info.username}/play?startapp=room_{message.from_user.id}"
+    invite_link = f"https://t.me/{bot_info.username}/play?startapp=room_{message.from_user.id}"
     
     markup = types.InlineKeyboardMarkup(inline_keyboard=[
         [types.InlineKeyboardButton(text="Вызвать друга на дуэль ⚔️", switch_inline_query=f"Вызываю тебя на дуэль! Переходи: {invite_link}")]
