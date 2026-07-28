@@ -3,6 +3,7 @@ import json
 import logging
 import sqlite3
 import os
+import time 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from fastapi import FastAPI, HTTPException, Body
@@ -117,8 +118,12 @@ async def get_game():
     with open(html_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
+import time  # ДОБАВИТЬ В САМЫЙ ВЕРХ ФАЙЛА К ОСТАЛЬНЫМ ИМПОРТАМ
+
 @app.get("/api/state/{room_id}/{user_id}")
 async def get_state(room_id: str, user_id: str):
+    current_time = time.time()
+    
     if room_id not in game_rooms:
         game_rooms[room_id] = {
             "board": [""] * 9,
@@ -128,15 +133,32 @@ async def get_state(room_id: str, user_id: str):
             "winner": "",
             "turn": "X",
             "rematch_requests": [],
-            "rematch_declined": False
+            "rematch_declined": False,
+            "last_seen": {}  # ДОРАБОТАНО: храним время онлайна
         }
     
     room = game_rooms[room_id]
+    
+    # Обновляем время активности текущего игрока
+    if "last_seen" not in room:
+        room["last_seen"] = {}
+    room["last_seen"][str(user_id)] = current_time
     
     if room["player1"] != user_id and room["player2"] is None:
         room["player2"] = user_id
         room["status"] = "active"
     
+    # ДОРАБОТАНО: Проверка, не вышел ли противник (актуально для активной или завершенной игры)
+    if room["status"] in ["active", "over"]:
+        p1, p2 = str(room["player1"]), str(room["player2"])
+        opponent_id = p2 if str(user_id) == p1 else p1
+        
+        last_active = room["last_seen"].get(opponent_id, 0)
+        # Если противника не было в сети больше 5 секунд
+        if current_time - last_active > 5.0:
+            room["status"] = "left"
+            room["winner"] = "opponent_left"
+
     my_symbol = "X" if room["player1"] == user_id else "O"
     
     cursor.execute("SELECT IFNULL(wins, 0), IFNULL(losses, 0) FROM users WHERE user_id = ?", (int(user_id) if user_id.isdigit() else 0,))
@@ -163,7 +185,12 @@ async def make_move(room_id: str, data: dict = Body(...)):
     room = game_rooms[room_id]
     index = data.get("index")
     symbol = data.get("symbol")
+    user_id = data.get("user_id")
     
+    # Обновляем активность при ходе
+    if "last_seen" in room and user_id:
+        room["last_seen"][str(user_id)] = time.time()
+        
     if room["board"][index] != "" or room["turn"] != symbol or room["status"] != "active":
         return {"success": False}
         
@@ -196,18 +223,16 @@ async def handle_rematch(room_id: str, data: dict = Body(...)):
     action = data.get("action")
     user_id = data.get("user_id")
     
-    # Получаем ID обоих игроков в комнате
+    if "last_seen" in room and user_id:
+        room["last_seen"][str(user_id)] = time.time()
+        
     p1 = room["player1"]
     p2 = room["player2"]
-    
-    # Определяем ID оппонента для текущего игрока
     opponent_id = p2 if str(user_id) == str(p1) else p1
     
     if action == "request":
-        # ИСПРАВЛЕНО: Если оппонент УЖЕ нажал кнопку "Играть еще раз", 
-        # то повторное нажатие от текущего игрока автоматически ПРИНИМАЕТ вызов!
         if str(opponent_id) in [str(uid) for uid in room["rematch_requests"]]:
-            action = "accept"  # Меняем действие на автоматическое согласие
+            action = "accept"
         else:
             if user_id not in room["rematch_requests"]:
                 room["rematch_requests"].append(user_id)
@@ -215,14 +240,12 @@ async def handle_rematch(room_id: str, data: dict = Body(...)):
             return {"success": True}
             
     if action == "accept":
-        # Сброс поля и запуск новой игры
         room["board"] = [""] * 9
         room["status"] = "active"
         room["winner"] = ""
         room["rematch_requests"] = []
         room["rematch_declined"] = False
         
-        # Меняем очередность знаков (X и O меняются местами)
         room["player1"] = p2
         room["player2"] = p1
         room["turn"] = "X"
