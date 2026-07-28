@@ -71,6 +71,19 @@
         let roomId = urlParams.get('room');
         let userId = urlParams.get('user');
 
+        // ИСПРАВЛЕНО: Безопасное получение параметров комнаты из шторки Telegram Mini App
+        if (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+            const startParam = tg.initDataUnsafe.start_param;
+            if (startParam.startsWith("room_")) {
+                roomId = startParam.replace("room_", "");
+            }
+        }
+        
+        // ИСПРАВЛЕНО: Автоматическое определение реального Telegram ID текущего игрока
+        if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            userId = tg.initDataUnsafe.user.id.toString();
+        }
+
         if (!roomId || roomId === "null") roomId = "lobby_" + Math.floor(Math.random() * 10000);
         if (!userId || userId === "null") userId = "player_" + Math.floor(Math.random() * 10000);
 
@@ -79,9 +92,8 @@
         let isMyTurn = false;
         let isGameActive = false;
 
-        const winPatterns = [, [3, 4, 5], [6, 7, 8],
-, [1, 4, 7], [2, 5, 8],
-, [2, 4, 6]
+        // ИСПРАВЛЕНО: Восстановлен полный и правильный массив выигрышных комбинаций
+        const winPatterns = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
         ];
 
         function checkWin(b, s) {
@@ -121,7 +133,7 @@
                 const rematchBtn = document.getElementById('rematch-btn');
                 const rematchModal = document.getElementById('rematch-modal');
 
-                // ДОРАБОТАНО: Если противник закрыл окно или отключился
+                // ИСПРАВЛЕНО: Автоматическое закрытие Mini App, если соперник вышел из игры
                 if (data.status === "left") {
                     isGameActive = false;
                     document.getElementById('status').innerText = "⌛ Противник покинул игру. Выход...";
@@ -130,7 +142,6 @@
                     rematchBtn.style.display = "none";
                     rematchModal.style.display = "none";
                     
-                    // Мягко закрываем мини-приложение через 2.5 секунды
                     setTimeout(() => {
                         if (tg) tg.close();
                     }, 2500);
