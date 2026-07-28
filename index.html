@@ -58,6 +58,7 @@
         <div class="modal-content">
             <div style="font-size: 1.1rem; font-weight: bold;">Противник хочет с Вами сыграть еще раз!🔄</div>
             <button id="close-btn" class="btn" style="background: #ff3b30;" onclick="if(tg)tg.close();">Выйти в меню</button>
+            
             <div class="modal-buttons">
                 <button class="btn btn-accept" style="display:block;" onclick="acceptRematch()">Принять</button>
                 <button class="btn btn-decline" style="display:block;" onclick="declineRematch()">Отклонить</button>
@@ -103,7 +104,6 @@
 , [0, 3, 6], [1, 4, 7], [2, 5, 8], 
 , [0, 4, 8] [2, 4, 6]
         ];
-
         function checkWin(b, s) {
             return winPatterns.some(p => p.every(i => b[i] === s));
         }
@@ -139,6 +139,7 @@
                 });
 
                 const rematchBtn = document.getElementById('rematch-btn');
+                const closeBtn = document.getElementById('close-btn');
                 const rematchModal = document.getElementById('rematch-modal');
 
                 if (data.status === "left") {
@@ -149,10 +150,8 @@
                     rematchBtn.style.display = "none";
                     rematchModal.style.display = "none";
                     
-                    // Показываем кнопку ручного выхода для ПК версии
-                    document.getElementById('close-btn').style.display = "block";
+                    closeBtn.style.display = "block";
                     
-                    // Попытка автоматического закрытия шторки
                     setTimeout(() => {
                         if (tg) tg.close();
                     }, 2000);
@@ -163,6 +162,7 @@
                     document.getElementById('status').innerText = `Вы играете за: ${mySymbol}. Ожидаем соперника...`;
                     isGameActive = false;
                     rematchBtn.style.display = "none";
+                    closeBtn.style.display = "none";
                     rematchModal.style.display = "none";
                 } else if (data.status === "active") {
                     document.getElementById('board').style.opacity = "1";
@@ -171,6 +171,7 @@
                     isMyTurn = (data.turn === mySymbol);
                     document.getElementById('status').innerText = isMyTurn ? "Ваш ход!" : "Ход противника...";
                     rematchBtn.style.display = "none";
+                    closeBtn.style.display = "none";
                     rematchModal.style.display = "none";
                     rematchBtn.disabled = false;
                     rematchBtn.innerText = "Сыграть еще раз";
