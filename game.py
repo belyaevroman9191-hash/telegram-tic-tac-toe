@@ -19,7 +19,9 @@ dp = Dispatcher()
 app = FastAPI()
 
 # Инициализация базы данных SQLite
-conn = sqlite3.connect("tic_tac_toe.db", check_same_thread=False)
+import os
+db_path = os.path.join(os.path.dirname(__file__), "tic_tac_toe.db")
+conn = sqlite3.connect(db_path, check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
