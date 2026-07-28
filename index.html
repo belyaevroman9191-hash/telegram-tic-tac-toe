@@ -71,7 +71,6 @@
         let roomId = urlParams.get('room');
         let userId = urlParams.get('user');
 
-        // 1. Пытаемся взять комнату из официального параметра Telegram
         if (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
             const startParam = tg.initDataUnsafe.start_param;
             if (startParam.startsWith("room_")) {
@@ -79,16 +78,14 @@
             }
         }
         
-        // 2. РЕЗЕРВНЫЙ ВАРИАНТ: Если Telegram на ПК сбагнул, парсим саму ссылку вручную
         if (!roomId || roomId === "null") {
             const fullUrl = window.location.href;
-            const match = fullUrl.match(/tgWebAppStartParam=room_(\d+)/);
-            if (match && match[1]) {
-                roomId = match[1];
+            const matchResult = fullUrl.match(/tgWebAppStartParam=room_(\d+)/);
+            if (matchResult && matchResult[1]) {
+                roomId = matchResult[1];
             }
         }
         
-        // Автоматически определяем Telegram ID игрока
         if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
             userId = tg.initDataUnsafe.user.id.toString();
         }
@@ -101,12 +98,14 @@
         let isMyTurn = false;
         let isGameActive = false;
 
-        const winPatterns = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+        const winPatterns = [, [3, 4, 5], [6, 7, 8],
+, [1, 4, 7], [2, 5, 8],
+, [2, 4, 6]
+        ];
 
         function checkWin(b, s) {
             return winPatterns.some(p => p.every(i => b[i] === s));
         }
-
 
         function highlightWin(b, s) {
             const cells = document.querySelectorAll('.cell');
@@ -141,7 +140,6 @@
                 const rematchBtn = document.getElementById('rematch-btn');
                 const rematchModal = document.getElementById('rematch-modal');
 
-                // ИСПРАВЛЕНО: Автоматическое закрытие Mini App, если соперник вышел из игры
                 if (data.status === "left") {
                     isGameActive = false;
                     document.getElementById('status').innerText = "⌛ Противник покинул игру. Выход...";
