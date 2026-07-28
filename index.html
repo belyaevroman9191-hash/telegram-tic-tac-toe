@@ -120,18 +120,12 @@
             "space": {name: "Космос", cost: 15, x: "🚀", o: "👽"}
         };
 
-        // ТВОЙ ПОЛНОСТЬЮ ИСПРАВЛЕННЫЙ ВАРИАНТ ФУНКЦИЙ (БЕЗ СОКРАЩЕНИЙ МАРКДАУНА)
-        function checkWin(b, s) {
-            const winPatterns = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-            return winPatterns.some(p => p.every(i => b[i] === s));
-        }
-
-        function highlightWin(b, s) {
-            const winPatterns = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+        // ИСПРАВЛЕНО: Функции урезаны. Подсветку линии теперь дает сервер по индексам
+        function highlightWin(line) {
             const cells = document.querySelectorAll('.cell');
-            winPatterns.forEach(p => {
-                if (p.every(i => b[i] === s)) { p.forEach(i => cells[i].classList.add('win-line')); }
-            });
+            if (line && line.length > 0) {
+                line.forEach(i => cells[i].classList.add('win-line'));
+            }
         }
         function showNotification(text, hasInput = false, defaultValue = "") {
             return new Promise((resolve) => {
@@ -324,9 +318,6 @@
                     if (data.status !== "over" && cells[idx].classList.contains('win-line')) {
                         cells[idx].classList.remove('win-line');
                     }
-                    if (!cells[idx].classList.contains('win-line')) {
-                        cells[idx].className = "cell"; 
-                    }
                 });
 
                 const rematchBtn = document.getElementById('rematch-btn');
@@ -357,13 +348,18 @@
                     rematchModal.style.display = "none";
                 } else if (data.status === "over") {
                     isGameActive = false;
-                    document.getElementById('status').innerText = data.winner === "Ничья" ? "Ничья! 🤝" : (data.winner === data.visual_symbol ? "Вы победили! 🎉" : `Победил соперник! 😔`);
                     
-                    if (data.winner !== "Ничья") { highlightWin(boardState, data.winner); }
+                    // ИСПРАВЛЕНО: Сверка результатов по чистым символам X и O с бэкенда
+                    if (data.winner === "Ничья") {
+                        document.getElementById('status').innerText = "Ничья! 🤝";
+                    } else {
+                        document.getElementById('status').innerText = (data.winner === mySymbol) ? "Вы победили! 🎉" : "Победил соперник! 😔";
+                        highlightWin(data.win_line);
+                    }
 
                     if (lastStatus !== "over") {
                         if (data.winner === "Ничья") playSound('click');
-                        else if (data.winner === data.visual_symbol) { playSound('win'); triggerVibration('success'); }
+                        else if (data.winner === mySymbol) { playSound('win'); triggerVibration('success'); }
                         else { playSound('lose'); triggerVibration('error'); }
                     }
 
@@ -377,6 +373,7 @@
                             rematchBtn.style.display = "none"; rematchModal.style.display = "flex";
                         }
                     } else {
+                        // Кнопка реванша теперь стабильно держит свой статус active
                         rematchBtn.style.display = "block"; rematchBtn.disabled = false; rematchBtn.innerText = "Сыграть еще раз"; rematchModal.style.display = "none";
                     }
                 }
@@ -390,15 +387,14 @@
                 return;
             }
             playSound('click'); triggerVibration('light');
-            boardState[index] = mySymbol; isMyTurn = false;
+            boardState[index] = "temp"; 
+            isMyTurn = false;
             document.getElementById('status').innerText = "Отправка хода...";
-            let isWinDetected = checkWin(boardState, mySymbol);
-            let isTieDetected = !boardState.includes("") && !isWinDetected;
             try {
                 await fetch(`/api/move/${roomId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ index: index, symbol: mySymbol, user_id: userId, game_over: isWinDetected || isTieDetected, winner_id: isWinDetected ? userId : null })
+                    body: JSON.stringify({ index: index, symbol: mySymbol, user_id: userId })
                 });
                 defUpdate();
             } catch (e) { document.getElementById('status').innerText = "Ошибка отправки хода."; }
