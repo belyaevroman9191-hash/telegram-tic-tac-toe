@@ -262,6 +262,35 @@ async def handle_rematch(room_id: str, data: dict = Body(...)):
         room["rematch_requests"] = []
         
     return {"success": True}
+# ИСПРАВЛЕНО: Этот блок ловит нажатие, красиво оформляет карточку в чате у друга и прикрепляет рабочую кнопку
+@dp.inline_query()
+async def inline_handler(inline_query: types.InlineQuery):
+    text = inline_query.query
+    if "https://t.me" not in text:
+        return
+        
+    # Вытаскиваем ссылку из запроса
+    link = text.split("Переходи: ")[1].strip() if "Переходи: " in text else text
+    
+    input_content = types.InputTextMessageContent(
+        message_text=f"❌⭕ **Вызов на дуэль в Крестики-Нолики!**\n\nПрими вызов и покажи, на что способен. Нажми на кнопку ниже, чтобы начать игру!",
+        parse_mode="Markdown"
+    )
+    
+    # Создаем кнопку, которая откроет шторку Mini App прямо у друга в чате
+    reply_markup = types.InlineKeyboardMarkup(inline_keyboard=[
+        [types.InlineKeyboardButton(text="⚔️ Принять вызов (Играть)", url=link)]
+    ])
+    
+    item = types.InlineQueryResultArticle(
+        id="1",
+        title="⚔️ Отправить вызов на дуэль",
+        description="Нажмите сюда, чтобы отправить карточку игры в этот чат",
+        input_message_content=input_content,
+        reply_markup=reply_markup
+    )
+    
+    await inline_query.answer([item], cache_time=1)
 
 async def main():
     bot_task = asyncio.create_task(dp.start_polling(bot))
