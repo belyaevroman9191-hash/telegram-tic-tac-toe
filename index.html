@@ -7,12 +7,25 @@
     <script src="https://telegram.org"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1c1c1e; color: #ffffff; margin: 0; padding: 20px; }
-        .board { display: grid; grid-template-columns: repeat(3, 90px); grid-gap: 10px; justify-content: center; margin: 30px auto; }
+        .board { display: grid; grid-template-columns: repeat(3, 90px); grid-gap: 10px; justify-content: center; margin: 20px auto; }
         .cell { width: 90px; height: 90px; background: #2c2c2e; font-size: 2.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 12px; font-weight: bold; transition: all 0.3s ease; }
         .cell.x { color: #ff3b30; }
         .cell.o { color: #007aff; }
-        #status { font-size: 1.2rem; margin-bottom: 10px; color: #eaeaea; }
+        #status { font-size: 1.2rem; margin-bottom: 5px; color: #eaeaea; }
+        #stats { font-size: 1rem; margin-bottom: 15px; color: #aaaaaa; background: #2c2c2e; display: inline-block; padding: 6px 15px; border-radius: 20px; }
         
+        .btn { background: #007aff; color: #fff; border: none; padding: 12px 24px; font-size: 1rem; font-weight: bold; border-radius: 10px; cursor: pointer; display: none; margin: 15px auto; transition: background 0.2s; }
+        .btn:hover { background: #0056b3; }
+        .btn:disabled { background: #444; color: #888; cursor: not-allowed; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 100; }
+        .modal-content { background: #2c2c2e; padding: 25px; border-radius: 16px; width: 85%; max-width: 320px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+        .btn-accept { background: #34c759; }
+        .btn-accept:hover { background: #28a745; }
+        .btn-decline { background: #ff3b30; }
+        .btn-decline:hover { background: #dc3545; }
+
         .cell.win-line {
             background: #34c759 !important;
             color: #ffffff !important;
@@ -24,6 +37,7 @@
 <body>
 
     <h2 style="margin-top: 10px;">Крестики-Нолики ❌⭕</h2>
+    <div id="stats">🏆 Побед: 0 | 👎 Проигрышей: 0</div>
     <div id="status">Инициализация игровой сессии...</div>
     
     <div class="board" id="board">
@@ -38,6 +52,17 @@
         <div class="cell" onclick="handleCellClick(8)"></div>
     </div>
 
+    <button id="rematch-btn" class="btn" onclick="sendRematchRequest()">Сыграть еще раз</button>
+
+    <div id="rematch-modal" class="modal">
+        <div class="modal-content">
+            <div style="font-size: 1.1rem; font-weight: bold;">Противник хочет с Вами сыграть еще раз!🔄</div>
+            <div class="modal-buttons">
+                <button class="btn btn-accept" style="display:block;" onclick="acceptRematch()">Принять</button>
+                <button class="btn btn-decline" style="display:block;" onclick="declineRematch()">Отклонить</button>
+            </div>
+        </div>
+    </div>
     <script>
         const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
         if (tg) tg.expand();
@@ -54,20 +79,17 @@
         let isMyTurn = false;
         let isGameActive = false;
 
-        // ИСПРАВЛЕНО: Объявляем функции проверки в самом начале скрипта
+        const winPatterns = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Горизонтальные линии
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // Вертикальные линии
+            [0, 4, 8], [2, 4, 6]             // Диагональные линии
+        ];
+
         function checkWin(b, s) {
-            const winPatterns = [, [3, 4, 5], [6, 7, 8],
-, [1, 4, 7], [2, 5, 8],
-, [2, 4, 6]
-            ];
             return winPatterns.some(p => p.every(i => b[i] === s));
         }
 
         function highlightWin(b, s) {
-            const winPatterns = [, [3, 4, 5], [6, 7, 8],
-, [1, 4, 7], [2, 5, 8],
-, [2, 4, 6]
-            ];
             const cells = document.querySelectorAll('.cell');
             winPatterns.forEach(p => {
                 if (p.every(i => b[i] === s)) {
@@ -84,27 +106,62 @@
                 mySymbol = data.symbol;
                 boardState = data.board;
                 
+                document.getElementById('stats').innerText = `🏆 Побед: ${data.user_wins || 0} | 👎 Проигрышей: ${data.user_losses || 0}`;
+                
                 const cells = document.querySelectorAll('.cell');
                 boardState.forEach((val, idx) => {
                     cells[idx].innerText = val;
+                    if (data.status !== "over" && cells[idx].classList.contains('win-line')) {
+                        cells[idx].classList.remove('win-line');
+                    }
                     if (!cells[idx].classList.contains('win-line')) {
                         cells[idx].className = "cell" + (val ? " " + val.toLowerCase() : "");
                     }
                 });
 
+                const rematchBtn = document.getElementById('rematch-btn');
+                const rematchModal = document.getElementById('rematch-modal');
+
                 if (data.status === "wait") {
                     document.getElementById('status').innerText = `Вы играете за: ${mySymbol}. Ожидаем соперника...`;
                     isGameActive = false;
+                    rematchBtn.style.display = "none";
+                    rematchModal.style.display = "none";
                 } else if (data.status === "active") {
                     isGameActive = true;
                     isMyTurn = (data.turn === mySymbol);
                     document.getElementById('status').innerText = isMyTurn ? "Ваш ход!" : "Ход противника...";
+                    rematchBtn.style.display = "none";
+                    rematchModal.style.display = "none";
+                    rematchBtn.disabled = false;
+                    rematchBtn.innerText = "Сыграть еще раз";
                 } else if (data.status === "over") {
                     isGameActive = false;
                     document.getElementById('status').innerText = data.winner === "Ничья" ? "Ничья! 🤝" : (data.winner === mySymbol ? "Вы победили! 🎉" : `Победил игрок ${data.winner}! 😔`);
                     
                     if (data.winner !== "Ничья") {
                         highlightWin(boardState, data.winner);
+                    }
+
+                    const reqs = data.rematch_requests || [];
+                    if (data.rematch_declined) {
+                        rematchBtn.style.display = "block";
+                        rematchBtn.disabled = true;
+                        rematchBtn.innerText = "Противник отклонил реванш ↩️";
+                        rematchModal.style.display = "none";
+                    } else if (reqs.length > 0) {
+                        if (reqs.includes(userId)) {
+                            rematchBtn.style.display = "block";
+                            rematchBtn.disabled = true;
+                            rematchBtn.innerText = "Ожидание ответа...";
+                            rematchModal.style.display = "none";
+                        } else {
+                            rematchBtn.style.display = "none";
+                            rematchModal.style.display = "flex";
+                        }
+                    } else {
+                        rematchBtn.style.display = "block";
+                        rematchModal.style.display = "none";
                     }
                 }
             } catch (err) {
@@ -142,6 +199,39 @@
             } catch (e) {
                 document.getElementById('status').innerText = "Ошибка отправки хода.";
             }
+        }
+
+        async function sendRematchRequest() {
+            try {
+                await fetch(`/api/rematch/${roomId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'request', user_id: userId })
+                });
+                defUpdate();
+            } catch (e) {}
+        }
+
+        async function acceptRematch() {
+            try {
+                await fetch(`/api/rematch/${roomId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'accept', user_id: userId })
+                });
+                defUpdate();
+            } catch (e) {}
+        }
+
+        async function declineRematch() {
+            try {
+                await fetch(`/api/rematch/${roomId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'decline', user_id: userId })
+                });
+                defUpdate();
+            } catch (e) {}
         }
 
         setInterval(defUpdate, 1000);
