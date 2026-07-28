@@ -103,20 +103,17 @@ async def cmd_top(message: types.Message):
 @dp.message(lambda msg: msg.text == "🔗 Позвать друга")
 async def cmd_invite_link(message: types.Message):
     bot_info = await bot.get_me()
-    # Четкая ссылка с правильным слэшэм после t.me/
+    # Правильная ссылка на твою Mini App комнату со слэшем
     invite_link = f"https://t.me/{bot_info.username}/play?startapp=room_{message.from_user.id}"
     
+    # ИСПРАВЛЕНО: возвращаем switch_inline_query, но кнопка внутри карточки будет вести сразу в Mini App
     markup = types.InlineKeyboardMarkup(inline_keyboard=[
-        [types.InlineKeyboardButton(text="⚔️ Принять вызов (Играть)", url=invite_link)]
+        [types.InlineKeyboardButton(
+            text="Вызвать друга на дуэль ⚔️", 
+            switch_inline_query=f"Вызываю тебя на дуэль! Переходи: {invite_link}"
+        )]
     ])
-    
-    # Одно сообщение с форматированием, готовое к пересылке в любой чат
-    await message.answer(
-        f"💬 **Перешлите это сообщение другу:**\n\n"
-        f"⚔️ Вызываю тебя на дуэль в Крестики-Нолики! Нажми на кнопку ниже, чтобы войти в игру:", 
-        reply_markup=markup,
-        parse_mode="Markdown"
-    )
+    await message.answer("Нажмите на кнопку ниже, выберите друга, и приглашение автоматически отправится ему в чат:", reply_markup=markup)
 
 @app.get("/")
 @app.get("/game")
