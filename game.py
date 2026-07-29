@@ -219,15 +219,16 @@ async def make_move(room_id: str, data: dict = Body(...)):
 async def handle_shop(user_id: str, data: dict = Body(...)):
     user_id = int(user_id) if user_id.isdigit() else 0
     action = data.get("action")
-    skin_id = data.get("skin_id") or data.get("skinId") # Защита от camelCase/snake_case
+    skin_id = data.get("skin_id") or data.get("skinId")
     
     cursor.execute("SELECT wins, unlocked_skins FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     if not row: 
         raise HTTPException(status_code=404, detail="User not found")
         
-    # --- ОШИБКА БЫЛА ЗДЕСЬ (строка ниже исправлена) ---
-    wins, unlocked_skins = row[0], row[1] if row[1] else "classic"
+    # ПРАВИЛЬНОЕ РАЗБИЕНИЕ КОРТЕЖА ИЗ БД:
+    wins = int(row[0]) if row[0] is not None else 0
+    unlocked_skins = str(row[1]) if row[1] is not None else "classic"
     unlocked_list = unlocked_skins.split(",")
     
     if action == "equip":
