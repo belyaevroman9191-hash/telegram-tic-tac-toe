@@ -23,13 +23,14 @@ async def cmd_start(message: types.Message):
     
     text_parts = message.text.split()
     
+    # ИСПРАВЛЕНО: Проверяем строку аргумента, а не список
     if len(text_parts) > 1 and text_parts[1].startswith("game_"):
         room_id = text_parts[1].replace("game_", "")
         link = f"{SERVER_URL}/game?room={room_id}&user={user_id}"
         await message.answer(
             "⚔️ Вы приняли вызов! Нажмите кнопку ниже, чтобы войти в игру:",
             reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
-                [types.InlineKeyboardButton(text="Играть", web_app=types.WebAppInfo(url=link))]
+                [types.InlineKeyboardButton(text="Играть 🎮", web_app=types.WebAppInfo(url=link))]
             ])
         )
         return
@@ -49,17 +50,16 @@ async def cmd_start(message: types.Message):
 @dp.message(Command("top"))
 async def cmd_top(message: types.Message):
     try:
-        # ДОБАВЛЕНО ИЗВЛЕЧЕНИЕ НИЧЬИХ (draws) ИЗ БД
+        # ИСПРАВЛЕНО: Запрос строго соответствует колонкам бэкенда
         cursor.execute("SELECT username, IFNULL(wins, 0), IFNULL(losses, 0), IFNULL(draws, 0) FROM users ORDER BY wins DESC, losses ASC LIMIT 10")
         leaders = cursor.fetchall()
         if not leaders:
             await message.answer("Таблица лидеров пока пуста! 🏆")
             return
-        text = "🏆 **ТОП-10 ИГРОКОВ (ПО ПОБЕДАМ):**\n\n"
+        text = "🏆 **ТОП-10 ИГРОКОВ:**\n\n"
         for i, (username, wins, losses, draws) in enumerate(leaders, 1):
             total_games = wins + losses + draws
             winrate = round((wins / total_games) * 100) if total_games > 0 else 0
-            # Выводим ничьи через значок 🤝
             text += f"{i}. @{username} — {wins} 🥇 / {losses} ❌ / {draws} 🤝 | 📈 WR: {winrate}%\n"
         await message.answer(text, parse_mode="Markdown")
     except Exception as e:
