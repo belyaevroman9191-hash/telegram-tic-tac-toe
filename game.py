@@ -93,8 +93,16 @@ async def get_state(room_id: str, user_id: str):
             "status": "wait", "winner": "", "win_line": [], "turn": "X",
             "rematch_requests": [], "rematch_declined": False, "last_seen": {}
         }
-    
+
     room = game_rooms[room_id]
+    # Если комната покинута и заходит сам создатель комнаты, сбрасываем её
+    if room.get("status") == "left" and room.get("player1") == user_id:
+        game_rooms[room_id] = {
+            "board": [""] * 9, "player1": user_id, "player2": None,
+            "status": "wait", "winner": "", "win_line": [], "turn": "X",
+            "rematch_requests": [], "rematch_declined": False, "last_seen": {}
+        }
+        room = game_rooms[room_id]
     if "last_seen" not in room:
         room["last_seen"] = {}
     room["last_seen"][user_id] = current_time
