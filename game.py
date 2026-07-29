@@ -1,116 +1,7 @@
-import os
-import sqlite3
-
-# Жестко запрещаем Render создавать дублирующие процессы бота при старте
-os.environ["WEB_CONCURRENCY"] = "1"
-
-# Безопасное получение токенов из панели управления Render
-TOKEN = os.getenv("BOT_TOKEN", "8756387431:AAHVVg2yXaHFC_XngwuwAkODLz7yUEQY2XA")
-SERVER_URL = os.getenv("SERVER_URL", "https://telegram-tic-tac-toe-8dv1.onrender.com")
-ADMIN_SECRET = os.getenv("ADMIN_SECRET", "SUPER_SECRET_WINS_KEY_99")
-
-# Настройка базы данных
-db_path = os.path.join(os.path.dirname(__file__), "tic_tac_toe.db")
-conn = sqlite3.connect(db_path, check_same_thread=False)
-cursor = conn.cursor()
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS users (
- user_id INTEGER PRIMARY KEY,
- username TEXT,
- wins INTEGER DEFAULT 0,
- losses INTEGER DEFAULT 0,
- current_skin TEXT DEFAULT 'classic',
- unlocked_skins TEXT DEFAULT 'classic'
-)
-""")
-conn.commit()
-
-SKINS_CONFIG = {
- "classic": {"name": "Классика", "cost": 0, "x": "❌", "o": "⭕"},
- "ninja": {"name": "Дуэль Ниндзя", "cost": 3, "x": "⚔️", "o": "Ὦ️"},
- "elements": {"name": "Магия стихий", "cost": 5, "x": "ὒ", "o": "Ὂ"},
- "halloween": {"name": "Хэллоуин", "cost": 10, "x": "὇", "o": "Ἰ"},
- "space": {"name": "Космос", "cost": 15, "x": "Ὠ", "o": "὇"}
-}
-
-game_rooms = {}
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
-from config import TOKEN, SERVER_URL, cursor, conn
-
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
-
-def check_server_win(b, s):
-    win_patterns = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]]
-    for p in win_patterns:
-        if b[p[0]] == s and b[p[1]] == s and b[p[2]] == s:
-            return p
-    return None
-
-@dp.message(Command("start"))
-async def cmd_start(message: types.Message):
-    user_id = message.from_user.id
-    username = message.from_user.username or message.from_user.first_name
-    
-    cursor.execute("INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)", (user_id, username))
-    cursor.execute("UPDATE users SET username = ? WHERE user_id = ?", (username, user_id))
-    conn.commit()
-    
-    text_parts = message.text.split()
-    
-    # ИСПРАВЛЕНО: Корректная проверка аргумента глубокой ссылки в aiogram
-    if len(text_parts) > 1 and text_parts[1].startswith("game_"):
-        room_id = text_parts[1].replace("game_", "")
-        link = f"{SERVER_URL}/game?room={room_id}&user={user_id}"
-        await message.answer(
-            "⚔️ Вы приняли вызов! Нажмите кнопку ниже, чтобы войти в игру:",
-            reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
-                [types.InlineKeyboardButton(text="Играть", web_app=types.WebAppInfo(url=link))]
-            ])
-        )
-        return
-
-    link = f"{SERVER_URL}/game?room={user_id}&user={user_id}"
-    markup = types.ReplyKeyboardMarkup(
-        keyboard=[
-            [types.KeyboardButton(text="Ὢ Войти в свою комнату", web_app=types.WebAppInfo(url=link))],
-            [types.KeyboardButton(text="Ἴ Таблица лидеров"), types.KeyboardButton(text="ὑ Позвать друга")]
-        ],
-        resize_keyboard=True,
-        is_persistent=True
-    )
-    await message.answer("❌⭕ Добро пожаловать! Используйте меню ниже для управления игрой.", reply_markup=markup)
-
-@dp.message(lambda msg: msg.text == "Ἴ Таблица лидеров")
-@dp.message(Command("top"))
-async def cmd_top(message: types.Message):
-    try:
-        cursor.execute("SELECT username, IFNULL(wins, 0), IFNULL(losses, 0) FROM users ORDER BY wins DESC, losses ASC LIMIT 10")
-        leaders = cursor.fetchall()
-        if not leaders:
-            await message.answer("Таблица лидеров пока пуста! Ἴ")
-            return
-        text = "Ἴ **ТОП-10 ИГРОКОВ:**\n\n"
-        for i, (username, wins, losses) in enumerate(leaders, 1):
-            text += f"{i}. @{username} — {wins} ᾔ / {losses} ὄ\n"
-        await message.answer(text, parse_mode="Markdown")
-    except Exception as e:
-        await message.answer("Произошла ошибка при загрузке топа.")
-
-@dp.message(lambda msg: msg.text == "ὑ Позвать друга")
-async def cmd_invite_link(message: types.Message):
-    bot_info = await bot.get_me()
-    deep_link = f"https://t.me/{bot_info.username}?start=game_{message.from_user.id}"
-    
-    markup = types.InlineKeyboardMarkup(inline_keyboard=[
-        [types.InlineKeyboardButton(text="Вызвать друга на дуэль ⚔️", switch_inline_query=f"Вызываю тебя на дуэль! Переходи по ссылке: {deep_link}")]
-    ])
-    await message.answer("Нажмите на кнопку ниже, выберите друга, и приглашение отправится ему в чат:", reply_markup=markup)
 import asyncio
 import logging
 import time
+import os
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -131,7 +22,6 @@ app.add_middleware(
 @app.get("/")
 @app.get("/game")
 async def get_game():
-    import os
     html_path = os.path.join(os.path.dirname(__file__), "index.html")
     with open(html_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
@@ -176,13 +66,13 @@ async def get_state(room_id: str, user_id: str):
     
     cursor.execute("SELECT current_skin FROM users WHERE user_id = ?", (int(room["player1"]) if room["player1"].isdigit() else 0,))
     p1_skin_row = cursor.fetchone()
-    p1_skin = p1_skin_row[0] if p1_skin_row else "classic"
+    p1_skin = p1_skin_row if p1_skin_row else "classic"
     
     p2_skin = "classic"
     if room["player2"]:
         cursor.execute("SELECT current_skin FROM users WHERE user_id = ?", (int(room["player2"]) if room["player2"].isdigit() else 0,))
         p2_skin_row = cursor.fetchone()
-        p2_skin = p2_skin_row[0] if p2_skin_row else "classic"
+        p2_skin = p2_skin_row if p2_skin_row else "classic"
         
     visual_board = []
     for cell in room["board"]:
@@ -257,7 +147,7 @@ async def handle_shop(user_id: str, data: dict = Body(...)):
     cursor.execute("SELECT wins, unlocked_skins FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     if not row: raise HTTPException(status_code=404, detail="User not found")
-    wins, unlocked_skins = row[0], row[1] or "classic"
+    wins, unlocked_skins = row, row or "classic"
     unlocked_list = unlocked_skins.split(",")
     
     if action == "equip":
