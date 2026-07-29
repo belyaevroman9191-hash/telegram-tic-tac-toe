@@ -74,7 +74,7 @@
  <div class="cell" onclick="handleCellClick(8)"></div>
  </div>
  <button id="rematch-btn" class="btn" onclick="sendRematchRequest()">Сыграть еще раз</button>
- <button id="close-btn" class="btn btn-close-ui" onclick="if(tg)tg.close();">Закрыть игру 🚪</button>
+<button id="close-btn" style="background: #ff3b30; color: #fff; border: none; padding: 12px 24px; font-size: 1rem; font-weight: bold; border-radius: 10px; cursor: pointer; display: block; margin: 15px auto; transition: background 0.2s;" onclick="if(window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.close(); }">Закрыть игру 🚪</button>
 
  <div class="shop-title">🛍️ Магазин кастомных скинов</div>
  <div class="shop-container" id="shop-box"></div>
@@ -311,14 +311,11 @@
  const rematchBtn = document.getElementById('rematch-btn');
  const rematchModal = document.getElementById('rematch-modal');
  const timerDisplay = document.getElementById('timer-display');
- const closeBtn = document.getElementById('close-btn');
 
  if (data.status === "wait") {
      timerDisplay.style.display = "none";
-     closeBtn.style.display = "none";
  } else if (data.status === "active") {
      timerDisplay.style.display = "block";
-     closeBtn.style.display = "none";
      let secondsLeft = data.time_left !== undefined ? data.time_left : 10;
      timerDisplay.innerText = `⏱️ Время на ход: ${secondsLeft} сек`;
      if (secondsLeft <= 3) timerDisplay.classList.add('warning');
@@ -333,7 +330,6 @@
      rematchBtn.style.display = "none";
      rematchModal.style.display = "none";
      timerDisplay.style.display = "none";
-     closeBtn.style.display = "block";
      return;
  }
  
