@@ -52,11 +52,14 @@ async def get_state(room_id: str, user_id: str):
     if room["player1"] and room["player2"] and room["status"] == "wait":
         room["status"] = "active"
     
-    if room["status"] in ["active", "over"]:
+    # ИСПРАВЛЕНО: Проверяем уход соперника ТОЛЬКО во время активной игры
+    if room["status"] == "active":
         p1, p2 = str(room["player1"]), str(room["player2"])
         opponent_id = p2 if user_id == p1 else p1
         last_active = room["last_seen"].get(opponent_id, 0)
-        if current_time - last_active > 7.0:
+        
+        # Если соперник не отвечает дольше 10 секунд во время матча
+        if current_time - last_active > 10.0:
             room["status"] = "left"
             room["winner"] = "opponent_left"
             
