@@ -116,7 +116,8 @@ async def get_state(room_id: str, user_id: str):
         "visual_symbol": my_visual_symbol, "turn": room["turn"], "winner": room["winner"], 
         "win_line": room.get("win_line", []), "user_wins": wins, "user_losses": losses, "user_draws": draws, # ПЕРЕДАЕМ draws НА ФРОНТЕНД
         "current_skin": current_skin, "unlocked_skins": unlocked_skins,
-        "rematch_requests": room.get("rematch_requests", []), "rematch_declined": room.get("rematch_declined", False)
+        "rematch_requests": room.get("rematch_requests", []), "rematch_declined": room.get("rematch_declined", False),
+        "time_left": room_timeout_left  # ДОБАВЛЕНО СЮДА
     }
 
 @app.post("/api/move/{room_id}")
@@ -129,6 +130,7 @@ async def make_move(room_id: str, data: dict = Body(...)):
     
     room["board"][index] = symbol
     room["turn"] = "O" if symbol == "X" else "X"
+    room["turn_start_time"] = time.time()  # ИСПРАВЛЕНО: Сбрасываем таймер для следующего хода!
     
     winning_pattern = check_server_win(room["board"], symbol)
     if winning_pattern:
