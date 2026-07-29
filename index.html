@@ -425,6 +425,29 @@ async function shopAction(action, skinId) {
  }
  setInterval(defUpdate, 1000);
  defUpdate();
+  function showToast(text, isSuccess = false) {
+    const toast = document.getElementById('custom-toast');
+    const toastText = document.getElementById('toast-text');
+    const toastIcon = document.getElementById('toast-icon');
+    
+    toastText.innerText = text;
+    if (isSuccess) {
+        toast.style.borderColor = '#34c759'; // Зеленый для успеха
+        toastIcon.innerText = '🎉';
+    } else {
+        toast.style.borderColor = '#ff3b30'; // Красный для ошибок
+        toastIcon.innerText = '⚠️';
+    }
+    
+    // Показываем окно (выдвигаем сверху)
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+    
+    // Прячем через 3 секунды
+    setTimeout(() => {
+        toast.style.transform = 'translateX(-50%) translateY(-100px)';
+    }, 3000);
+}
+
  </script>
 </body>
 </html>
