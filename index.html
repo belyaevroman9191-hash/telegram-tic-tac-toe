@@ -124,14 +124,30 @@
  "halloween": {name: "Хэллоуин", cost: 10, x: "🎃", o: "💀"},
  "space": {name: "Космос", cost: 15, x: "🚀", o: "🛸"}
  };
- function shareRoomLink() {
+ async function shareRoomLink() {
      playSound('click');
-     if (tg) {
-         tg.openTelegramLink(`https://t.me{roomId}&text=Вызываю тебя на дуэль в Крестики-Нолики! ⚔️ Попробуй победить меня!`);
-     } else {
-         showNotification("Функция доступна только внутри Telegram.");
+     try {
+         // Даем команду серверу очистить комнату от старого игрока
+         await fetch(`/api/reset_room/${roomId}`, {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ user_id: userId })
+         });
+         
+         // Принудительно обновляем экран у себя
+         defUpdate();
+         
+         // Открываем меню Telegram для отправки новой ссылки
+         if (tg) {
+             tg.openTelegramLink(`https://t.me/{roomId}&text=Вызываю тебя на дуэль в Крестики-Нолики! ⚔️ Попробуй победить меня!`);
+         } else {
+             showNotification("Функция доступна только внутри Telegram.");
+         }
+     } catch (e) {
+         showNotification("Ошибка сброса комнаты.");
      }
  }
+
  function highlightWin(line) {
  const cells = document.querySelectorAll('.cell');
  if (line && line.length > 0) {
