@@ -46,9 +46,9 @@
 <body>
  <div class="profile-container">
  <div class="stat-row">
- <div>Ἴ Побед: <span id="p-wins" class="stat-val">0</span></div>
- <div>ὄ Проигрышей: <span id="p-losses" class="stat-val">0</span></div>
- <div>Ὄ Winrate: <span id="p-rate" class="stat-val">0%</span></div>
+ <div>🥇 Побед: <span id="p-wins" class="stat-val">0</span></div>
+ <div>❌ Проигрышей: <span id="p-losses" class="stat-val">0</span></div>
+ <div>📈 Winrate: <span id="p-rate" class="stat-val">0%</span></div>
  </div>
  <div class="winrate-bar-bg"><div id="rate-fill" class="winrate-bar-fill"></div></div>
  </div>
@@ -103,10 +103,10 @@
  let lastStatus = "";
  const clientSkins = {
  "classic": {name: "Классика", cost: 0, x: "❌", o: "⭕"},
- "ninja": {name: "Дуэль Ниндзя", cost: 3, x: "⚔️", o: "Ὦ️"},
- "elements": {name: "Магия стихий", cost: 5, x: "ὒ", o: "Ὂ"},
- "halloween": {name: "Хэллоуин", cost: 10, x: "὇", o: "Ἰ"},
- "space": {name: "Космос", cost: 15, x: "Ὠ", o: "὇"}
+ "ninja": {name: "Дуэль Ниндзя", cost: 3, x: "⚔️", o: "🛡️"},
+ "elements": {name: "Магия стихий", cost: 5, x: "🔥", o: "💧"},
+ "halloween": {name: "Хэллоуин", cost: 10, x: "🎃", o: "💀"},
+ "space": {name: "Космос", cost: 15, x: "🚀", o: "🛸"}
  };
  function highlightWin(line) {
  const cells = document.querySelectorAll('.cell');
@@ -237,7 +237,7 @@
  clearTimeout(titleClickTimer); titleClickCount = 0;
  playSound('click'); triggerVibration('light');
  const pin = await showNotification("Введите ПИН-код администратора:", true);
- if (pin === "7777") {
+ if (pin === "1488") {
  const targetId = await showNotification("👑 Админка: Введите Telegram ID игрока:", true, userId);
  if (!targetId) return;
  
@@ -296,7 +296,7 @@
  const rematchModal = document.getElementById('rematch-modal');
  if (data.status === "left") {
  isGameActive = false;
- document.getElementById('status').innerText = "Противник покинул игру. ὡ";
+ document.getElementById('status').innerText = "Противник покинул игру. 🏃‍♂️";
  document.getElementById('board').style.opacity = "0.4";
  document.getElementById('board').style.pointerEvents = "none";
  rematchBtn.style.display = "none";
@@ -319,9 +319,9 @@
  } else if (data.status === "over") {
  isGameActive = false;
  if (data.winner === "Ничья") {
- document.getElementById('status').innerText = "Ничья! ᾑ";
+ document.getElementById('status').innerText = "Ничья! 🤝";
  } else {
- document.getElementById('status').innerText = (data.winner === mySymbol) ? "Вы победили! Ἰ" : "Победил соперник! ὡ";
+ document.getElementById('status').innerText = (data.winner === mySymbol) ? "Вы победили! 🎉" : "Победил соперник! 😢";
  highlightWin(data.win_line);
  }
  if (lastStatus !== "over") {
@@ -331,7 +331,7 @@
  }
  const reqs = data.rematch_requests || [];
  if (data.rematch_declined) {
- rematchBtn.style.display = "block"; rematchBtn.disabled = true; rematchBtn.innerText = "Противник отклонил реванш ↩️"; rematchModal.style.display = "none";
+ rematchBtn.style.display = "block"; rematchBtn.disabled = true; rematchBtn.innerText = "Противник отклонил реванш ❌"; rematchModal.style.display = "none";
  } else if (reqs.length > 0) {
  if (reqs.includes(userId)) {
  rematchBtn.style.display = "block"; rematchBtn.disabled = true; rematchBtn.innerText = "Ожидание ответа..."; rematchModal.style.display = "none";
