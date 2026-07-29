@@ -11,19 +11,25 @@ db_path = os.path.join(os.path.dirname(__file__), "tic_tac_toe.db")
 conn = sqlite3.connect(db_path, check_same_thread=False)
 cursor = conn.cursor()
 
-# ДОБАВЛЕНО ПОЛЕ draws СЮДА
+# Создаем базовую таблицу
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
     username TEXT,
     wins INTEGER DEFAULT 0,
     losses INTEGER DEFAULT 0,
-    draws INTEGER DEFAULT 0,
     current_skin TEXT DEFAULT 'classic',
     unlocked_skins TEXT DEFAULT 'classic'
 )
 """)
 conn.commit()
+
+# Проверяем и динамически добавляем колонку draws, если её нет, чтобы избежать краша
+try:
+    cursor.execute("ALTER TABLE users ADD COLUMN draws INTEGER DEFAULT 0")
+    conn.commit()
+except sqlite3.OperationalError:
+    pass  # Колонка уже существует
 
 SKINS_CONFIG = {
     "classic": {"name": "Классика", "cost": 0, "x": "❌", "o": "⭕"},
