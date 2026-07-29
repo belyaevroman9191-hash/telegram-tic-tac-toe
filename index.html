@@ -31,7 +31,7 @@
  .shop-btn.equip-btn { background: #30b0c7; }
  .shop-btn.owned-btn { background: #48484a; color: #aeaeae; cursor: default; }
  .btn { background: #007aff; color: #fff; border: none; padding: 12px 24px; font-size: 1rem; font-weight: bold; border-radius: 10px; cursor: pointer; display: none; margin: 15px auto; transition: background 0.2s; }
- .btn-invite-ui { background: #34c759; color: #fff; display: block; margin: 10px auto; padding: 10px 20px; font-size: 0.95rem; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; }
+ .btn-close-ui { background: #ff3b30 !important; }
  .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 100; }
  .modal-content { background: #2c2c2e; padding: 25px; border-radius: 16px; width: 85%; max-width: 320px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
  .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
@@ -59,10 +59,8 @@
  <h2 id="game-title" style="margin-top: 10px; cursor: pointer;" onclick="handleAdminClick()">Крестики-Нолики ❌⭕</h2>
  <div id="status">Инициализация игровой сессии...</div>
  
- <!-- ТЕГ ВИЗУАЛЬНОГО ТАЙМЕРА -->
  <div id="timer-display" class="timer-text" style="display: none;">⏱️ Время на ход: 10 сек</div>
 
- <button id="ui-invite-btn" class="btn-invite-ui" onclick="shareRoomLink()">Позвать друга в эту комнату 🤝</button>
  <div class="board" id="board">
  <div class="cell" onclick="handleCellClick(0)"></div>
  <div class="cell" onclick="handleCellClick(1)"></div>
@@ -75,6 +73,8 @@
  <div class="cell" onclick="handleCellClick(8)"></div>
  </div>
  <button id="rematch-btn" class="btn" onclick="sendRematchRequest()">Сыграть еще раз</button>
+ <button id="close-btn" class="btn btn-close-ui" onclick="if(tg)tg.close();">Закрыть игру 🚪</button>
+
  <div class="shop-title">🛍️ Магазин кастомных скинов</div>
  <div class="shop-container" id="shop-box"></div>
  <div id="rematch-modal" class="modal">
@@ -99,9 +99,11 @@
  <script>
  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
  if (tg) tg.expand();
+ 
  const urlParams = new URLSearchParams(window.location.search);
  let roomId = urlParams.get('room');
  let userId = urlParams.get('user');
+ 
  if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
      if (!userId || userId === "null" || userId.startsWith("player_")) {
          userId = String(tg.initDataUnsafe.user.id);
@@ -110,8 +112,10 @@
          roomId = String(tg.initDataUnsafe.user.id);
      }
  }
+ 
  if (!roomId || roomId === "null") roomId = "lobby_" + Math.floor(Math.random() * 10000);
  if (!userId || userId === "null") userId = "player_" + Math.floor(Math.random() * 10000);
+ 
  let mySymbol = "";
  let boardState = ["", "", "", "", "", "", "", "", ""];
  let isMyTurn = false;
@@ -124,29 +128,6 @@
  "halloween": {name: "Хэллоуин", cost: 10, x: "🎃", o: "💀"},
  "space": {name: "Космос", cost: 15, x: "🚀", o: "🛸"}
  };
- async function shareRoomLink() {
-     playSound('click');
-     try {
-         // Даем команду серверу очистить комнату от старого игрока
-         await fetch(`/api/reset_room/${roomId}`, {
-             method: 'POST',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ user_id: userId })
-         });
-         
-         // Принудительно обновляем экран у себя
-         defUpdate();
-         
-         // Открываем меню Telegram для отправки новой ссылки
-         if (tg) {
-             tg.openTelegramLink(`https://t.me/{roomId}&text=Вызываю тебя на дуэль в Крестики-Нолики! ⚔️ Попробуй победить меня!`);
-         } else {
-             showNotification("Функция доступна только внутри Telegram.");
-         }
-     } catch (e) {
-         showNotification("Ошибка сброса комнаты.");
-     }
- }
 
  function highlightWin(line) {
  const cells = document.querySelectorAll('.cell');
@@ -292,7 +273,7 @@
  playSound('error'); triggerVibration('error'); await showNotification("Ошибка: " + resData.message);
  }
  defUpdate();
- } catch (e) { await showNotification("Ошибка подключения к серверу."); }
+ } catch (e) { await showNotification("Ошибка подключения к server."); }
  } else if (pin !== null) {
  playSound('error'); triggerVibration('error'); await showNotification("Неверный ПИН-код!");
  }
@@ -328,40 +309,33 @@
  
  const rematchBtn = document.getElementById('rematch-btn');
  const rematchModal = document.getElementById('rematch-modal');
- const uiInviteBtn = document.getElementById('ui-invite-btn');
  const timerDisplay = document.getElementById('timer-display');
+ const closeBtn = document.getElementById('close-btn');
 
  if (data.status === "wait") {
-     uiInviteBtn.style.display = "block";
      timerDisplay.style.display = "none";
+     closeBtn.style.display = "none";
  } else if (data.status === "active") {
-     uiInviteBtn.style.display = "none";
      timerDisplay.style.display = "block";
-     
-     // Считываем оставшиеся секунды с бэкенда
+     closeBtn.style.display = "none";
      let secondsLeft = data.time_left !== undefined ? data.time_left : 10;
      timerDisplay.innerText = `⏱️ Время на ход: ${secondsLeft} сек`;
-     
-     // Если времени мало (3 секунды и меньше), включаем мигание
-     if (secondsLeft <= 3) {
-         timerDisplay.classList.add('warning');
-     } else {
-         timerDisplay.classList.remove('warning');
-     }
- } else {
-     uiInviteBtn.style.display = "none";
-     timerDisplay.style.display = "none";
+     if (secondsLeft <= 3) timerDisplay.classList.add('warning');
+     else timerDisplay.classList.remove('warning');
  }
 
  if (data.status === "left") {
- isGameActive = false;
- document.getElementById('status').innerText = "Противник покинул игру. 🏃‍♂️";
- document.getElementById('board').style.opacity = "0.4";
- document.getElementById('board').style.pointerEvents = "none";
- rematchBtn.style.display = "none";
- rematchModal.style.display = "none";
- return;
+     isGameActive = false;
+     document.getElementById('status').innerText = "Противник покинул игру. 🏃‍♂️";
+     document.getElementById('board').style.opacity = "0.4";
+     document.getElementById('board').style.pointerEvents = "none";
+     rematchBtn.style.display = "none";
+     rematchModal.style.display = "none";
+     timerDisplay.style.display = "none";
+     closeBtn.style.display = "block";
+     return;
  }
+ 
  if (data.status === "wait") {
  document.getElementById('status').innerText = `Вы играете за: ${data.visual_symbol}. Ожидаем соперника...`;
  isGameActive = false;
