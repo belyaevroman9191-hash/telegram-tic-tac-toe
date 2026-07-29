@@ -59,7 +59,12 @@
  </div>
  <h2 id="game-title" style="margin-top: 10px; cursor: pointer;" onclick="handleAdminClick()">Крестики-Нолики ❌⭕</h2>
  <div id="status">Инициализация игровой сессии...</div>
- 
+ <!-- Красивое кастомное уведомление -->
+<div id="custom-toast" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: rgba(30, 30, 30, 0.95); color: #fff; border: 1px solid #ff3b30; padding: 14px 24px; border-radius: 12px; font-weight: bold; box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 10000; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); backdrop-filter: blur(10px); display: flex; align-items: center; gap: 10px;">
+    <span id="toast-icon">⚠️</span>
+    <span id="toast-text">Ошибка при покупке</span>
+</div>
+
  <div id="timer-display" class="timer-text" style="display: none;">⏱️ Время на ход: 10 сек</div>
 
  <div class="board" id="board">
@@ -234,7 +239,11 @@ async function shopAction(action, skinId) {
     const res = await fetch(`/shop/${userId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: action, skin_id: skinId })
+      body: JSON.stringify({ 
+        action: action, 
+        skin_id: skinId, // для snake_case моделей
+        skinId: skinId   // для camelCase моделей
+      })
     });
     
     const data = await res.json();
