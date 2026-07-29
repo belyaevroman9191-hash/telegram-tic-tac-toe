@@ -43,12 +43,9 @@ bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
 def check_server_win(b, s):
-    win_patterns = [, [3, 4, 5], [6, 7, 8],
-, [1, 4, 7], [2, 5, 8],
-, [2, 4, 6]
-    ]
+    win_patterns = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]]
     for p in win_patterns:
-        if b[p[0]] == s and b[p[1]] == s and b[p[2]] == s: # Исправлены индексы проверки победы
+        if b[p[0]] == s and b[p[1]] == s and b[p[2]] == s:
             return p
     return None
 
