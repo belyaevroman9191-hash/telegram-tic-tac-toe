@@ -150,15 +150,17 @@ async def get_state(room_id: str, user_id: str):
     except Exception:
         wins, losses, draws, current_skin, unlocked_skins = 0, 0, 0, 'classic', 'classic'
     
-    cursor.execute("SELECT current_skin FROM users WHERE user_id = ?", (int(room["player1"]) if room["player1"].isdigit() else 0,))
+    # Исправленное получение скина для Игрока 1 (X)
+    cursor.execute("SELECT current_skin FROM users WHERE user_id = ?", (int(room["player1"]) if str(room["player1"]).isdigit() else 0,))
     p1_skin_row = cursor.fetchone()
-    p1_skin = p1_skin_row if p1_skin_row else "classic"
+    p1_skin = p1_skin_row[0] if p1_skin_row and p1_skin_row[0] else "classic"
     
+    # Исправленное получение скина для Игрока 2 (O)
     p2_skin = "classic"
     if room["player2"]:
-        cursor.execute("SELECT current_skin FROM users WHERE user_id = ?", (int(room["player2"]) if room["player2"].isdigit() else 0,))
+        cursor.execute("SELECT current_skin FROM users WHERE user_id = ?", (int(room["player2"]) if str(room["player2"]).isdigit() else 0,))
         p2_skin_row = cursor.fetchone()
-        p2_skin = p2_skin_row if p2_skin_row else "classic"
+        p2_skin = p2_skin_row[0] if p2_skin_row and p2_skin_row[0] else "classic"
         
     visual_board = []
     for cell in room["board"]:
