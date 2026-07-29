@@ -28,10 +28,10 @@ conn.commit()
 
 SKINS_CONFIG = {
     "classic": {"name": "Классика", "cost": 0, "x": "❌", "o": "⭕"},
-    "ninja": {"name": "Дуэль Ниндзя", "cost": 3, "x": "⚔️", "o": "Ὦ️"},
-    "elements": {"name": "Магия стихий", "cost": 5, "x": "ὒ", "o": "Ὂ"},
-    "halloween": {"name": "Хэллоуин", "cost": 10, "x": "὇", "o": "Ἰ"},
-    "space": {"name": "Космос", "cost": 15, "x": "Ὠ", "o": "὇"}
+    "ninja": {"name": "Дуэль Ниндзя", "cost": 3, "x": "⚔️", "o": "🥷"},
+    "elements": {"name": "Магия стихий", "cost": 5, "x": "🔥", "o": "💧"},
+    "halloween": {"name": "Хэллоуин", "cost": 10, "x": "🎃", "o": "👻"},
+    "space": {"name": "Космос", "cost": 15, "x": "🚀", "o": "🛸"}
 }
 
 game_rooms = {}
