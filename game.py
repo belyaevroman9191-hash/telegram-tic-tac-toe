@@ -162,9 +162,11 @@ async def get_state(room_id: str, user_id: str):
         
     visual_board = []
     for cell in room["board"]:
-        if cell == "X":
+        # Проверяем и чистую букву, и стандартный эмодзи-крестик
+        if cell in ["X", "❌"]:
             visual_board.append(SKINS_CONFIG.get(p1_skin, SKINS_CONFIG["classic"])["x"])
-        elif cell == "O":
+        # Проверяем и чистую букву, и стандартный эмодзи-нолик
+        elif cell in ["O", "⭕"]:
             visual_board.append(SKINS_CONFIG.get(p2_skin, SKINS_CONFIG["classic"])["o"])
         else:
             visual_board.append("")
