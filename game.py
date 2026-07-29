@@ -217,11 +217,15 @@ async def make_move(room_id: str, data: dict = Body(...)):
 async def handle_shop(user_id: str, data: dict = Body(...)):
     user_id = int(user_id) if user_id.isdigit() else 0
     action = data.get("action")
-    skin_id = data.get("skin_id")
+    skin_id = data.get("skin_id") or data.get("skinId") # Защита от camelCase/snake_case
+    
     cursor.execute("SELECT wins, unlocked_skins FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
-    if not row: raise HTTPException(status_code=404, detail="User not found")
-    wins, unlocked_skins = row, row or "classic"
+    if not row: 
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    # --- ОШИБКА БЫЛА ЗДЕСЬ (строка ниже исправлена) ---
+    wins, unlocked_skins = row[0], row[1] if row[1] else "classic"
     unlocked_list = unlocked_skins.split(",")
     
     if action == "equip":
@@ -232,7 +236,9 @@ async def handle_shop(user_id: str, data: dict = Body(...)):
         return {"success": False, "message": "Скин еще не куплен"}
         
     elif action == "buy":
-        if skin_id in unlocked_list: return {"success": False, "message": "Скин уже куплен"}
+        if skin_id in unlocked_list: 
+            return {"success": False, "message": "Скин уже куплен"}
+            
         cost = 3 if skin_id == "ninja" else (5 if skin_id == "elements" else (10 if skin_id == "halloween" else 15))
         if wins >= cost:
             new_wins = wins - cost
