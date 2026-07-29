@@ -249,6 +249,26 @@ async def handle_rematch(room_id: str, data: dict = Body(...)):
         room["turn_start_time"] = time.time() 
         return {"success": True}
 
+@app.post("/api/reset_room/{room_id}")
+async def reset_room(room_id: str, data: dict = Body(...)):
+    user_id = str(data.get("user_id"))
+    if room_id in game_rooms:
+        # Полностью сбрасываем состояние комнаты для нового игрока
+        game_rooms[room_id] = {
+            "board": [""] * 9,
+            "player1": user_id,  # Вы остаетесь создателем
+            "player2": None,     # Очищаем старого оппонента
+            "status": "wait",    # Возвращаем режим ожидания
+            "winner": "",
+            "win_line": [],
+            "turn": "X",
+            "rematch_requests": [],
+            "rematch_declined": False,
+            "last_seen": {user_id: time.time()},
+            "turn_start_time": time.time()
+        }
+    return {"success": True}
+
 async def main():
     bot_task = asyncio.create_task(dp.start_polling(bot))
     config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info", workers=1, loop="asyncio")
