@@ -250,13 +250,14 @@ async function shopAction(action, skinId) {
     if (data.success) {
       if (typeof playSound === 'function') playSound('win'); 
       if (typeof triggerVibration === 'function') triggerVibration('success'); 
+     showToast("Скин успешно разблокирован!", true);
       defUpdate();
       // Перезагружаем интерфейс магазина, чтобы обновить кнопки
       if (typeof loadPlayerShop === 'function') loadPlayerShop();
     } else {
       if (typeof playSound === 'function') playSound('error'); 
       if (typeof triggerVibration === 'function') triggerVibration('error'); 
-      alert(data.message || "Ошибка при покупке");
+      showToast(data.message || "Ошибка при покупке", false);
     }
   } catch(e) {
     console.error("Ошибка при покупке скина:", e);
