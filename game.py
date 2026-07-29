@@ -44,24 +44,45 @@ async def get_state(room_id: str, user_id: str):
         room["last_seen"] = {}
     room["last_seen"][user_id] = current_time
     
+    # Игрок 1 — это создатель комнаты. Все остальные заходят как Игрок 2
     if room["player1"] != user_id:
-        if room["player2"] is None or room["player2"] == user_id:
+        if room["player2"] is None:
             room["player2"] = user_id
             room["status"] = "active"
-    
+            room["turn_start_time"] = time.time()  # Фиксируем старт хода при входе второго игрока
+            
     if room["player1"] and room["player2"] and room["status"] == "wait":
         room["status"] = "active"
-    
-    # ИСПРАВЛЕНО: Проверяем уход соперника ТОЛЬКО во время активной игры
+        room["turn_start_time"] = time.time()  # Фиксируем время старта первого хода
+
+    # Проверка тайм-аута на ход (10 секунд)
     if room["status"] == "active":
-        p1, p2 = str(room["player1"]), str(room["player2"])
-        opponent_id = p2 if user_id == p1 else p1
-        last_active = room["last_seen"].get(opponent_id, 0)
+        if "turn_start_time" not in room:
+            room["turn_start_time"] = time.time()
+            
+        elapsed_time = current_time - room["turn_start_time"]
         
-        # Если соперник не отвечает дольше 10 секунд во время матча
-        if current_time - last_active > 10.0:
-            room["status"] = "left"
-            room["winner"] = "opponent_left"
+        # Если 10 секунд вышло, засчитываем техническое поражение
+        if elapsed_time > 10.0:
+            room["status"] = "over"
+            timed_out_symbol = room["turn"] 
+            room["winner"] = "O" if timed_out_symbol == "X" else "X"
+            room["win_line"] = []  
+            
+            p1_id = int(room["player1"]) if room["player1"].isdigit() else 0
+            p2_id = int(room["player2"]) if room["player2"].isdigit() else 0
+            
+            if room["winner"] == "X" and p1_id and p2_id:
+                cursor.execute("UPDATE users SET wins = IFNULL(wins, 0) + 1 WHERE user_id = ?", (p1_id,))
+                cursor.execute("UPDATE users SET losses = IFNULL(losses, 0) + 1 WHERE user_id = ?", (p2_id,))
+            elif room["winner"] == "O" and p1_id and p2_id:
+                cursor.execute("UPDATE users SET wins = IFNULL(wins, 0) + 1 WHERE user_id = ?", (p2_id,))
+                cursor.execute("UPDATE users SET losses = IFNULL(losses, 0) + 1 WHERE user_id = ?", (p1_id,))
+            conn.commit()
+
+        room_timeout_left = max(0, 10 - int(elapsed_time))
+    else:
+        room_timeout_left = 10
             
     # ДОБАВЛЕНО ИЗВЛЕЧЕНИЕ draws ИЗ БД ДЛЯ ТЕКУЩЕГО ИГРОКА
     cursor.execute("SELECT IFNULL(wins, 0), IFNULL(losses, 0), IFNULL(draws, 0), current_skin, unlocked_skins FROM users WHERE user_id = ?", (int(user_id) if user_id.isdigit() else 0,))
