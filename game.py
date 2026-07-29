@@ -237,11 +237,17 @@ async def handle_rematch(room_id: str, data: dict = Body(...)):
             return {"success": True}
             
     if action == "accept":
-        room["board"], room["status"], room["winner"], room["win_line"], room["rematch_requests"], room["rematch_declined"] = [""] * 9, "active", "", [], [], False
-        room["player1"], room["player2"], room["turn"] = p2, p1, "X"
-    elif action == "decline":
-        room["rematch_declined"], room["rematch_requests"] = True, []
-    return {"success": True}
+        room["board"] = [""] * 9
+        room["status"] = "active"
+        room["winner"] = ""
+        room["win_line"] = []
+        room["rematch_requests"] = []
+        room["rematch_declined"] = False
+        room["player1"], room["player2"] = p2, p1
+        room["turn"] = "X"
+        # ИСПРАВЛЕНО: Сбрасываем таймер в момент перезапуска игры!
+        room["turn_start_time"] = time.time() 
+        return {"success": True}
 
 async def main():
     bot_task = asyncio.create_task(dp.start_polling(bot))
