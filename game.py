@@ -132,17 +132,34 @@ async def make_move(room_id: str, data: dict = Body(...)):
 async def admin_give_wins(data: dict = Body(...)):
     if data.get("secret_password") != ADMIN_SECRET:
         raise HTTPException(status_code=403, detail="Access Denied")
+        
     target_user_id = data.get("target_id")
     amount = data.get("amount", 0)
-    if not target_user_id: raise HTTPException(status_code=400, detail="Missing user ID")
+    
+    if not target_user_id: 
+        raise HTTPException(status_code=400, detail="Missing user ID")
+        
     try:
         target_user_id = int(target_user_id)
-        amount = int(amount)
+        
+        # Проверяем, существует ли игрок в базе данных
         cursor.execute("SELECT wins FROM users WHERE user_id = ?", (target_user_id,))
-        if not cursor.fetchone(): return {"success": False, "message": "Игрок не найден в БД!"}
+        if not cursor.fetchone(): 
+            return {"success": False, "message": "Игрок не найден в БД!"}
+            
+        # Если админ ввел "top", включаем режим Супер-Игрока
+        if str(amount).lower() == "top":
+            # Ставим 500 побед (гарантированный ТОП), стираем поражения и ничьи для 100% винрейта
+            cursor.execute("UPDATE users SET wins = 500, losses = 0, draws = 0 WHERE user_id = ?", (target_user_id,))
+            conn.commit()
+            return {"success": True, "message": f"👑 Игрок {target_user_id} теперь в ТОП-1 с 100% Winrate!"}
+            
+        # Иначе просто начисляем указанное количество побед, как и раньше
+        amount = int(amount)
         cursor.execute("UPDATE users SET wins = wins + ? WHERE user_id = ?", (amount, target_user_id))
         conn.commit()
         return {"success": True, "message": f"Начислено {amount} побед игроку {target_user_id}!"}
+        
     except Exception as e:
         return {"success": False, "message": f"Ошибка: {str(e)}"}
 
