@@ -49,14 +49,23 @@ async def cmd_start(message: types.Message):
 @dp.message(Command("top"))
 async def cmd_top(message: types.Message):
     try:
+        # Извлекаем пользователей, упорядочивая их по количеству побед
         cursor.execute("SELECT username, IFNULL(wins, 0), IFNULL(losses, 0) FROM users ORDER BY wins DESC, losses ASC LIMIT 10")
         leaders = cursor.fetchall()
+        
         if not leaders:
-            await message.answer("Таблица лидеров пока пуста! Ἴ")
+            await message.answer("Таблица лидеров пока пуста! 🏆")
             return
-        text = "🏆 **ТОП-10 ИГРОКОВ:**\n\n"
+            
+        text = "🏆 **ТОП-10 ИГРОКОВ (ПО ПОБЕДАМ):**\n\n"
+        
         for i, (username, wins, losses) in enumerate(leaders, 1):
-            text += f"{i}. @{username} — {wins} 🥇 / {losses} ❌\n"
+            total_games = wins + losses
+            # Считаем винрейт в процентах. Если игр 0, то и винрейт 0.
+            winrate = round((wins / total_games) * 100) if total_games > 0 else 0
+            
+            text += f"{i}. @{username} — {wins} 🥇 / {losses} ❌ | 📈 WR: {winrate}%\n"
+            
         await message.answer(text, parse_mode="Markdown")
     except Exception as e:
         await message.answer("Произошла ошибка при загрузке топа.")
