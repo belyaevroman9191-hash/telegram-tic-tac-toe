@@ -37,15 +37,15 @@ async def cmd_start(message: types.Message):
     link = f"{SERVER_URL}/game?room={user_id}&user={user_id}"
     markup = types.ReplyKeyboardMarkup(
         keyboard=[
-            [types.KeyboardButton(text="Ὢ Войти в свою комнату", web_app=types.WebAppInfo(url=link))],
-            [types.KeyboardButton(text="Ἴ Таблица лидеров"), types.KeyboardButton(text="ὑ Позвать друга")]
+            [types.KeyboardButton(text="🎮 Войти в свою комнату", web_app=types.WebAppInfo(url=link))],
+            [types.KeyboardButton(text="🏆 Таблица лидеров"), types.KeyboardButton(text="🤝 Позвать друга")]
         ],
         resize_keyboard=True,
         is_persistent=True
     )
     await message.answer("❌⭕ Добро пожаловать! Используйте меню ниже для управления игрой.", reply_markup=markup)
 
-@dp.message(lambda msg: msg.text == "Ἴ Таблица лидеров")
+@dp.message(lambda msg: msg.text == "🏆 Таблица лидеров")
 @dp.message(Command("top"))
 async def cmd_top(message: types.Message):
     try:
@@ -54,14 +54,14 @@ async def cmd_top(message: types.Message):
         if not leaders:
             await message.answer("Таблица лидеров пока пуста! Ἴ")
             return
-        text = "Ἴ **ТОП-10 ИГРОКОВ:**\n\n"
+        text = "🏆 **ТОП-10 ИГРОКОВ:**\n\n"
         for i, (username, wins, losses) in enumerate(leaders, 1):
-            text += f"{i}. @{username} — {wins} ᾔ / {losses} ὄ\n"
+            text += f"{i}. @{username} — {wins} 🥇 / {losses} ❌\n"
         await message.answer(text, parse_mode="Markdown")
     except Exception as e:
         await message.answer("Произошла ошибка при загрузке топа.")
 
-@dp.message(lambda msg: msg.text == "ὑ Позвать друга")
+@dp.message(lambda msg: msg.text == "🤝 Позвать друга")
 async def cmd_invite_link(message: types.Message):
     bot_info = await bot.get_me()
     deep_link = f"https://t.me/{bot_info.username}?start=game_{message.from_user.id}"
