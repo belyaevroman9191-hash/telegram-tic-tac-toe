@@ -228,25 +228,26 @@
  }
 async function shopAction(action, skinId) {
  try {
- const res = await fetch(`/shop/${userId}`, {
- method: 'POST',
- headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify({ action: action, skin_id: skinId, skinId: skinId })
- });
- 
- const data = await res.json();
- if (data.success) {
- if (typeof playSound === 'function') playSound('win'); 
- if (typeof triggerVibration === 'function') triggerVibration('success'); 
- showToast("Скин успешно применён!", true);
- defUpdate();
- } else {
- if (typeof playSound === 'function') playSound('error'); 
- if (typeof triggerVibration === 'function') triggerVibration('error'); 
- showToast(data.message || "Ошибка при покупке", false);
- }
+   // Возвращаем /api/shop/ вместо /shop/
+   const res = await fetch(`/api/shop/${userId}`, {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({ action: action, skin_id: skinId, skinId: skinId })
+   });
+   
+   const data = await res.json();
+   if (data.success) {
+     if (typeof playSound === 'function') playSound('win'); 
+     if (typeof triggerVibration === 'function') triggerVibration('success'); 
+     showToast(data.message || "Скин успешно применён!", true);
+     defUpdate();
+   } else {
+     if (typeof playSound === 'function') playSound('error'); 
+     if (typeof triggerVibration === 'function') triggerVibration('error'); 
+     showToast(data.message || "Ошибка при покупке", false);
+   }
  } catch(e) {
- console.error("Ошибка при покупке скина:", e);
+   console.error("Ошибка при покупке скина:", e);
  }
 }
  let titleClickCount = 0;
