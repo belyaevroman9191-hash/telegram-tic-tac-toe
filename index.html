@@ -66,12 +66,12 @@
  <div class="cell" onclick="handleCellClick(7)"></div>
  <div class="cell" onclick="handleCellClick(8)"></div>
  </div>
- <button id="rematch-btn" class="btn" onclick="sendRematchRequest()">Сыграть еще раз</button>
- <div class="shop-title">Ἲ Магазин кастомных скинов</div>
- <div class="shop-container" id="shop-box"></div>
- <div id="rematch-modal" class="modal">
+<button id="rematch-btn" class="btn" onclick="sendRematchRequest()">Сыграть еще раз</button>
+<div class="shop-title">🛍️ Магазин кастомных скинов</div>
+<div class="shop-container" id="shop-box"></div>
+<div id="rematch-modal" class="modal">
  <div class="modal-content">
- <div style="font-size: 1.1rem; font-weight: bold;">Противник хочет с Вами сыграть еще раз!ὐ</div>
+ <div style="font-size: 1.1rem; font-weight: bold;">Противник хочет с Вами сыграть еще раз! 🤝</div>
  <div class="modal-buttons">
  <button class="btn btn-accept" style="display:block;" onclick="acceptRematch()">Принять</button>
  <button class="btn btn-decline" style="display:block;" onclick="declineRematch()">Отклонить</button>
@@ -236,9 +236,9 @@
  if (titleClickCount === 3) {
  clearTimeout(titleClickTimer); titleClickCount = 0;
  playSound('click'); triggerVibration('light');
- const pin = await showNotification("ὑ Введите ПИН-код администратора:", true);
+ const pin = await showNotification("Введите ПИН-код администратора:", true);
  if (pin === "7777") {
- const targetId = await showNotification("ὅ Админка: Введите Telegram ID игрока:", true, userId);
+ const targetId = await showNotification("👑 Админка: Введите Telegram ID игрока:", true, userId);
  if (!targetId) return;
  
  const winsAmount = await showNotification("Сколько побед начислить?", true, "10");
