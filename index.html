@@ -229,29 +229,31 @@
  }
  }
 async function shopAction(action, skinId) {
- try {
-   // 1. Изменен относительный путь на правильный (добавлен /api/shop)
-   const res = await fetch(`/api/shop/${userId}`, {
-     method: 'POST',
-     headers: { 'Content-Type': 'application/json' },
-     // 2. Переменные приведены в соответствие с ожидаемым бэкендом форматом snake_case
-     body: JSON.stringify({ action: action, skin_id: skinId })
-   });
-   
-   const data = await res.json();
-   if (data.success) {
-     playSound('win'); 
-     triggerVibration('success'); 
-     defUpdate();
-   } else {
-     playSound('error'); 
-     triggerVibration('error'); 
-     await showNotification(data.message);
-   }
- } catch(e) {
-   console.error("Ошибка при покупке скина:", e);
- }
+  try {
+    // Убран префикс /api
+    const res = await fetch(`/shop/${userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: action, skin_id: skinId })
+    });
+    
+    const data = await res.json();
+    if (data.success) {
+      if (typeof playSound === 'function') playSound('win'); 
+      if (typeof triggerVibration === 'function') triggerVibration('success'); 
+      defUpdate();
+      // Перезагружаем интерфейс магазина, чтобы обновить кнопки
+      if (typeof loadPlayerShop === 'function') loadPlayerShop();
+    } else {
+      if (typeof playSound === 'function') playSound('error'); 
+      if (typeof triggerVibration === 'function') triggerVibration('error'); 
+      alert(data.message || "Ошибка при покупке");
+    }
+  } catch(e) {
+    console.error("Ошибка при покупке скина:", e);
+  }
 }
+
  let titleClickCount = 0;
  let titleClickTimer = null;
  async function handleAdminClick() {
