@@ -60,19 +60,20 @@ async def get_state(room_id: str, user_id: str):
             room["status"] = "left"
             room["winner"] = "opponent_left"
             
-    cursor.execute("SELECT IFNULL(wins, 0), IFNULL(losses, 0), current_skin, unlocked_skins FROM users WHERE user_id = ?", (int(user_id) if user_id.isdigit() else 0,))
+    # ДОБАВЛЕНО ИЗВЛЕЧЕНИЕ draws ИЗ БД ДЛЯ ТЕКУЩЕГО ИГРОКА
+    cursor.execute("SELECT IFNULL(wins, 0), IFNULL(losses, 0), IFNULL(draws, 0), current_skin, unlocked_skins FROM users WHERE user_id = ?", (int(user_id) if user_id.isdigit() else 0,))
     user_stats = cursor.fetchone()
-    wins, losses, current_skin, unlocked_skins = user_stats if user_stats else (0, 0, 'classic', 'classic')
+    wins, losses, draws, current_skin, unlocked_skins = user_stats if user_stats else (0, 0, 0, 'classic', 'classic')
     
     cursor.execute("SELECT current_skin FROM users WHERE user_id = ?", (int(room["player1"]) if room["player1"].isdigit() else 0,))
     p1_skin_row = cursor.fetchone()
-    p1_skin = p1_skin_row if p1_skin_row else "classic"
+    p1_skin = p1_skin_row[0] if p1_skin_row else "classic"
     
     p2_skin = "classic"
     if room["player2"]:
         cursor.execute("SELECT current_skin FROM users WHERE user_id = ?", (int(room["player2"]) if room["player2"].isdigit() else 0,))
         p2_skin_row = cursor.fetchone()
-        p2_skin = p2_skin_row if p2_skin_row else "classic"
+        p2_skin = p2_skin_row[0] if p2_skin_row else "classic"
         
     visual_board = []
     for cell in room["board"]:
@@ -89,7 +90,7 @@ async def get_state(room_id: str, user_id: str):
     return {
         "board": visual_board, "status": room["status"], "symbol": my_symbol,
         "visual_symbol": my_visual_symbol, "turn": room["turn"], "winner": room["winner"], 
-        "win_line": room.get("win_line", []), "user_wins": wins, "user_losses": losses, 
+        "win_line": room.get("win_line", []), "user_wins": wins, "user_losses": losses, "user_draws": draws, # ПЕРЕДАЕМ draws НА ФРОНТЕНД
         "current_skin": current_skin, "unlocked_skins": unlocked_skins,
         "rematch_requests": room.get("rematch_requests", []), "rematch_declined": room.get("rematch_declined", False)
     }
@@ -119,6 +120,12 @@ async def make_move(room_id: str, data: dict = Body(...)):
         room["status"] = "over"
         room["winner"] = "Ничья"
         room["win_line"] = []
+        # ИСПРАВЛЕНО: ЗАПИСЫВАЕМ НИЧЬЮ ОБОИМ ИГРОКАМ В БД
+        p1_id = int(room["player1"]) if room["player1"].isdigit() else 0
+        p2_id = int(room["player2"]) if room["player2"].isdigit() else 0
+        if p1_id: cursor.execute("UPDATE users SET draws = IFNULL(draws, 0) + 1 WHERE user_id = ?", (p1_id,))
+        if p2_id: cursor.execute("UPDATE users SET draws = IFNULL(draws, 0) + 1 WHERE user_id = ?", (p2_id,))
+        conn.commit()
     return {"success": True}
 
 @app.post("/api/admin/give")
@@ -147,7 +154,7 @@ async def handle_shop(user_id: str, data: dict = Body(...)):
     cursor.execute("SELECT wins, unlocked_skins FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     if not row: raise HTTPException(status_code=404, detail="User not found")
-    wins, unlocked_skins = row, row or "classic"
+    wins, unlocked_skins = row[0], row[1] or "classic"
     unlocked_list = unlocked_skins.split(",")
     
     if action == "equip":
